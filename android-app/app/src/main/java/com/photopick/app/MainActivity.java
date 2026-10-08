@@ -126,6 +126,7 @@ public class MainActivity extends Activity {
             worker.execute(() -> save(keys));
         }
         @JavascriptInterface public void cancelSave() { cancelled.set(true); }
+        @JavascriptInterface public void closeApp() { runOnUiThread(() -> { if (!saving) finish(); }); }
     }
 
     private void choose(int request) {

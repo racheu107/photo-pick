@@ -77,7 +77,7 @@
   window.nativeBack = () => {
     if (saving) { device.cancelSave(); return; }
     if (layer.innerHTML) { modalId = null; layer.innerHTML = ''; return; }
-    if (state.screen === 'home') { notice('앱을 종료하려면 홈 화면으로 이동해 주세요.'); return; }
+    if (state.screen === 'home') { device.closeApp(); return; }
     goBack();
   };
   window.onNativeReading = () => {
