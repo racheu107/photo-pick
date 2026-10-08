@@ -87,7 +87,7 @@
       const ids = reviewIds(), offset = ids.indexOf(id);
       const next = value ? (ids.slice(offset + 1).find(next => !state.ratings[next]) ?? firstUnrated()) : id;
       if (next === total()) { state.screen='summary'; persist(); render(); }
-      else { state.index=next; persist(); render(); openPhoto(next, true); }
+      else { state.index=next; persist(); openPhoto(next, true); }
       return;
     }
     persist(); render();
@@ -112,8 +112,22 @@
     if (offset < 0 || !sourcePhotos[id]) return;
     if (modalId === null && !preserveAlbumPosition) albumScroll = app.querySelector('.album-grid')?.scrollTop || 0;
     window.cancelPhotoMotion?.();
-    modalId=id; state.index=id; persist(); setFocus(true);
+    const existing = layer.querySelector('.focus-review');
+    modalId=id; state.index=id; persist();
+    if (!existing) { setFocus(true);
     layer.innerHTML=`<div class="modal focus-review" role="dialog" aria-modal="true" aria-label="한 장씩 사진 평가"><div class="detail-top"><button id="close-detail" class="detail-return" aria-label="앨범으로 돌아가기">${uiIcon('back')}<span>되돌아가기</span></button><div class="detail-navigation"><button id="previous" ${offset<=0?'disabled':''} aria-label="이전 사진">‹</button><span>${offset+1} / ${ids.length}</span><button id="next" ${offset>=ids.length-1?'disabled':''} aria-label="다음 사진">›</button></div><button id="detail-results">평가결과</button></div>${card(sourcePhotos[id])}<button class="clear-rating" id="clear-rating" ${state.ratings[id]?'':'disabled'}>평가 취소</button></div>`;
+    } else {
+      existing.querySelector('.photo-viewport').innerHTML=img(sourcePhotos[id]);
+      existing.querySelector('.detail-navigation span').textContent=`${offset+1} / ${ids.length}`;
+      existing.querySelector('#previous').disabled=offset<=0;
+      existing.querySelector('#next').disabled=offset>=ids.length-1;
+      existing.querySelector('#clear-rating').disabled=!state.ratings[id];
+      existing.querySelectorAll('[data-rate]').forEach(button=>{
+        button.disabled=false; button.classList.remove('chosen');
+        button.classList.toggle('active',state.ratings[id]===button.dataset.rate);
+        button.setAttribute('aria-pressed',String(state.ratings[id]===button.dataset.rate));
+      });
+    }
     layer.querySelector('#close-detail').onclick=closePhotoFocus;
     layer.querySelector('#previous').onclick=()=>openPhoto(ids[offset-1]);
     layer.querySelector('#next').onclick=()=>openPhoto(ids[offset+1]);
@@ -127,7 +141,7 @@
     const titles = {home:'Photo Pick', groups:'사진그룹 선택', scan:'사진 읽기', pick:'사진 평가', summary:'평가 결과', transfer:'사진 저장', ready:'저장 결과'};
     const h = document.querySelector('#screen-header');
     h.dataset.screen = state.screen;
-    h.innerHTML = `<button class="icon-button" id="screen-back" aria-label="${state.screen === 'pick' ? '이전 평가 되돌리기' : '이전 화면'}" ${state.screen === 'pick' && !state.history.length ? 'disabled' : ''}>${uiIcon('back')}${state.screen === 'pick' ? '<span>되돌리기</span>' : ''}</button><div><h1>${titles[state.screen]}</h1>${state.screen === 'summary' ? `<p>${ids.length-c.unrated} / ${ids.length}장 평가 완료</p>` : ''}</div><button class="icon-button" id="screen-menu" aria-label="메뉴">${uiIcon('menu')}</button>`;
+    h.innerHTML = `<button class="icon-button" id="screen-back" aria-label="뒤로가기">${uiIcon('back')}</button><div><h1>${titles[state.screen]}</h1>${state.screen === 'summary' ? `<p>${ids.length-c.unrated} / ${ids.length}장 평가 완료</p>` : ''}</div><button class="icon-button" id="screen-menu" aria-label="메뉴">${uiIcon('menu')}</button>`;
   };
   home = function() {
     baseHome();
@@ -219,6 +233,6 @@
       };
     }
   };
-  goBack = function() { if (state.screen==='groups') returnHome(); else baseBack(); };
+  goBack = function() { if (state.screen==='groups') returnHome(); else if (state.screen==='pick') goGroups(); else baseBack(); };
   render();
 })();
