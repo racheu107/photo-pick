@@ -81,10 +81,20 @@
     goBack();
   };
   window.onNativeReading = () => {
-    layer.innerHTML = '<div class="reading-layer" role="status"><div class="reading-spinner" aria-hidden="true"></div><h2>사진 불러오는 중...</h2><small id="reading-count">사진 목록 확인 중</small><div class="reading-tip"><b>사용 팁</b><p>사진을 두 손가락으로 확대해 확인하세요.<br>손을 놓으면 원래 크기로 돌아와요.</p></div></div>';
+    layer.innerHTML = `<div class="reading-layer" role="status"><div class="reading-art" aria-hidden="true"><div class="reading-halo"></div>${['assets/seoul-01.png','assets/seoul-02.png','assets/seoul-03.png'].map((url,i)=>`<div class="reading-photo reading-photo-${i}"><img src="${url}" alt=""></div>`).join('')}</div><h2>사진 불러오는 중...</h2><small id="reading-count">사진 목록 확인 중</small><div class="reading-meter" role="progressbar" aria-label="사진 읽기 진행" aria-valuemin="0" aria-valuemax="100" hidden><i></i></div><div class="reading-tip"><b>사용 팁</b><p>사진을 두 손가락으로 확대해 확인하세요.<br>손을 놓으면 원래 크기로 돌아와요.</p></div></div>`;
   };
   window.onNativeReadingProgress = progress => {
     const count = document.querySelector('#reading-count');
+    const meter = document.querySelector('.reading-meter');
+    if (meter) {
+      const known = Number.isFinite(progress.total) && progress.total > 0;
+      meter.hidden = !known;
+      if (known) {
+        const percent = Math.max(0, Math.min(100, progress.completed / progress.total * 100));
+        meter.querySelector('i').style.width = percent + '%';
+        meter.setAttribute('aria-valuenow', String(Math.round(percent)));
+      }
+    }
     if (count) count.textContent = Number.isFinite(progress.total) ? `불러온 ${progress.completed}장 / 전체 ${progress.total}장` : `사진 목록 확인 중 · ${progress.discovered || 0}장 발견`;
   };
   window.onNativeCancel = () => { layer.innerHTML = ''; };

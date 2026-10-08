@@ -45,7 +45,7 @@ public class UpdaterChecks extends Instrumentation {
             ExecutorService worker=(ExecutorService)workerField.get(updater); worker.submit(()->{}).get(10,TimeUnit.SECONDS);
             File folder=new File(activity.getCacheDir(),"updates"); folder.mkdirs();
             File same=new File(folder,"same.apk"); Files.copy(new File(activity.getApplicationInfo().sourceDir).toPath(),same.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            boolean rejected=false; try { updater.verify(same,"0.2.2"); } catch(SecurityException e) { rejected=true; }
+            boolean rejected=false; try { updater.verify(same, activity.getPackageManager().getPackageInfo(activity.getPackageName(),0).versionName); } catch(SecurityException e) { rejected=true; }
             require(rejected,"Installed version cannot be installed again");
             File part=new File(folder,"incomplete.part"); Files.write(part.toPath(),new byte[]{1,2,3});
             File bad=new File(folder,"bad.apk"); Files.write(bad.toPath(),new byte[]{1,2,3});
@@ -74,7 +74,7 @@ public class UpdaterChecks extends Instrumentation {
                 require(!new File(folder,"update.part").exists()&&!new File(folder,"update.apk").exists(),"Actual APK download rejects older version and deletes temporary file");
             }
             if (arguments!=null && arguments.containsKey("futureApk")) {
-                File future=new File(arguments.getString("futureApk")); updater.verify(future,"0.2.3");
+                File future=new File(arguments.getString("futureApk")); updater.verify(future, activity.getPackageManager().getPackageArchiveInfo(future.getPath(),0).versionName);
                 File target=new File(folder,"update.apk"); Files.copy(future.toPath(),target.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 updater.cleanup(); require(target.exists(),"Fresh uninstalled APK retained");
                 target.setLastModified(System.currentTimeMillis()-49L*60*60*1000); updater.cleanup();require(!target.exists(),"Cancelled stale APK cleaned after 48h");
