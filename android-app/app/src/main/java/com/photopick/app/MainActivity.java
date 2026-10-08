@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
     private static final String HOST = "app.photopick.local";
     private static final int FOLDER = 10, FILES = 11;
     private WebView web;
+    private FrameLayout container;
     private AppUpdater updater;
     private boolean checkedUpdates;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -69,7 +70,7 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         updater = new AppUpdater(this);
         web = new WebView(this);
-        FrameLayout container = new FrameLayout(this);
+        container = new FrameLayout(this);
         container.setBackgroundColor(android.graphics.Color.WHITE);
         container.addView(web, new FrameLayout.LayoutParams(-1, -1));
         setContentView(container);
@@ -152,6 +153,15 @@ public class MainActivity extends Activity {
     @Override protected void onResume() { super.onResume(); if (updater != null) updater.resume(); }
 
     public class Bridge {
+        @JavascriptInterface public void setPhotoFocus(boolean focused) {
+            runOnUiThread(() -> {
+                int color = focused ? android.graphics.Color.rgb(17,19,23) : android.graphics.Color.WHITE;
+                container.setBackgroundColor(color); getWindow().setStatusBarColor(color); getWindow().setNavigationBarColor(color);
+                int flags = getWindow().getDecorView().getSystemUiVisibility();
+                int light = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+                getWindow().getDecorView().setSystemUiVisibility(focused ? flags & ~light : flags | light);
+            });
+        }
         @JavascriptInterface public void checkUpdates() { runOnUiThread(() -> { if (!saving) updater.check(true); }); }
         @JavascriptInterface public void chooseFolder() { choose(FOLDER); }
         @JavascriptInterface public void chooseAnotherFolder() { runOnUiThread(() -> openFolderPicker()); }

@@ -1,11 +1,25 @@
 /* Photo inspection gestures and grade feedback; persistence stays in review-ui. */
 (() => {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const baseRender = render, baseRate = rate;
+  const baseRender = render, baseRate = rate, baseOpen = openPhoto;
   let pending = null, view = '', zoomed = false;
   let preload = null, resetZoom = null;
   window.addEventListener('blur', () => resetZoom?.());
   document.addEventListener('visibilitychange', () => { if (document.hidden) resetZoom?.(); });
+  window.cancelPhotoMotion = () => {
+    if (pending) { pending.cancel(); pending=null; }
+    resetZoom?.(); resetZoom=null; zoomed=false;
+    document.querySelector('.phone').classList.remove('zooming');
+  };
+  openPhoto = function(id, preserveAlbumPosition = false) {
+    baseOpen(id, preserveAlbumPosition);
+    const photo=layer.querySelector('.focus-review .card');
+    if (photo && !reduced.matches) photo.animate(
+      [{opacity:.35,transform:'scale(.94)'},{opacity:1,transform:'none'}],
+      {duration:190,easing:'cubic-bezier(.2,.7,.2,1)'});
+    const ids=reviewIds(), next=ids[ids.indexOf(id)+1];
+    if (next!==undefined) { preload=new Image(); preload.src=sourcePhotos[next].url; }
+  };
   render = function() {
     if (pending) { pending.cancel(); pending = null; }
     resetZoom?.(); resetZoom = null; zoomed = false;
@@ -43,7 +57,7 @@
       pending = null;
       if (!el.isConnected) return;
       baseRate(value);
-      const next = document.querySelector('#app .card');
+      const next = document.querySelector('#layer .card, #app .card');
       if (next && !reduced.matches) next.animate(
         [{opacity:0, transform:'translateY(16px) scale(.98)'}, {opacity:1, transform:'none'}],
         {duration:150, easing:'cubic-bezier(.2,.7,.2,1)'});

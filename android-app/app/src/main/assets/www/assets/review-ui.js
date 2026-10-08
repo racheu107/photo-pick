@@ -1,11 +1,27 @@
 /* Review scope uses original photo IDs: switching dates never discards ratings. */
 (() => {
   const baseRender = render, baseActivate = activateCandidate, basePersist = persist;
-  const baseBind = bind, baseBack = goBack, baseHome = home, baseOpen = openPhoto;
+  const baseBind = bind, baseBack = goBack, baseHome = home;
   const placeNames = new Map();
   let dateDraft = null;
   let resuming = false;
   let groupResize = null;
+  let albumScroll = 0;
+  const setFocus = enabled => {
+    document.querySelector('.phone').classList.toggle('photo-focus', enabled);
+    window.PhotoPickAndroid?.setPhotoFocus?.(enabled);
+  };
+  window.closePhotoFocus = () => {
+    window.cancelPhotoMotion?.(); setFocus(false); modalId = null; render();
+    const album = app.querySelector('.album-grid'); if (album) album.scrollTop = albumScroll;
+  };
+  const nativeBack = window.nativeBack;
+  if (nativeBack) window.nativeBack = () => { if (layer.querySelector('.focus-review')) closePhotoFocus(); else nativeBack(); };
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && layer.querySelector('.focus-review')) {
+      event.preventDefault(); event.stopImmediatePropagation(); closePhotoFocus();
+    }
+  }, true);
   const baseMenu = menuSheet;
   ['onNativeCancel', 'onNativeError'].forEach(name => {
     const callback = window[name];
@@ -58,7 +74,8 @@
     try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (_) { storageOK = false; }
   };
   update = function(id, value, advance = false) {
-    state.history.push({index:state.index, ratings:{...state.ratings}});
+    const focused = modalId !== null && !!layer.querySelector('.focus-review');
+    state.history.push({index:focused ? id : state.index, ratings:{...state.ratings}});
     if (value) state.ratings[id] = value; else delete state.ratings[id];
     state.hintSeen = true;
     if (advance) {
@@ -66,15 +83,22 @@
       state.index = ids.slice(offset + 1).find(next => !state.ratings[next]) ?? firstUnrated();
       if (state.index === total()) state.screen = 'summary';
     }
+    if (focused) {
+      const ids = reviewIds(), offset = ids.indexOf(id);
+      const next = value ? (ids.slice(offset + 1).find(next => !state.ratings[next]) ?? firstUnrated()) : id;
+      if (next === total()) { state.screen='summary'; persist(); render(); }
+      else { state.index=next; persist(); render(); openPhoto(next, true); }
+      return;
+    }
     persist(); render();
   };
   activateCandidate = function(candidate, same) {
     baseActivate(candidate, same);
     if (!same) { state.reviewDates = []; placeNames.clear(); }
     if (state.dataset === 'demo') sourcePhotos.forEach(p => { p.captureDate = p.id < 5 ? '2026-10-06' : '2026-10-07'; });
-    dateDraft = null; state.screen = resuming && same && state.reviewDates.length ? (firstUnrated() === total() ? 'summary' : 'pick') : 'groups';
+    dateDraft = null; state.screen = resuming && same && state.reviewDates.length ? 'pick' : 'groups';
     if (state.screen === 'pick') state.index = firstUnrated();
-    resuming = false; persist(); render();
+    state.mode = 'grid'; resuming = false; persist(); render();
     const keys = reviewGroups().map(g => g.photos.find(p => p.hasLocation)?.nativeKey).filter(Boolean);
     if (keys.length && window.PhotoPickAndroid?.describePlaces) PhotoPickAndroid.describePlaces(JSON.stringify(keys));
   };
@@ -83,13 +107,20 @@
     if (state.screen === 'groups' && !layer.innerHTML) render();
   };
   const goGroups = () => { dateDraft=null; state.screen = 'groups'; render(); };
-  openPhoto = function(id) {
-    baseOpen(id);
+  openPhoto = function(id, preserveAlbumPosition = false) {
     const ids=reviewIds(), offset=ids.indexOf(id);
-    const previous=layer.querySelector('#previous'), next=layer.querySelector('#next');
-    previous.disabled=offset<=0; next.disabled=offset>=ids.length-1;
-    previous.onclick=()=>openPhoto(ids[offset-1]); next.onclick=()=>openPhoto(ids[offset+1]);
-    layer.querySelector('.detail-top span').textContent=`${offset+1} / ${ids.length}`;
+    if (offset < 0 || !sourcePhotos[id]) return;
+    if (modalId === null && !preserveAlbumPosition) albumScroll = app.querySelector('.album-grid')?.scrollTop || 0;
+    window.cancelPhotoMotion?.();
+    modalId=id; state.index=id; persist(); setFocus(true);
+    layer.innerHTML=`<div class="modal focus-review" role="dialog" aria-modal="true" aria-label="한 장씩 사진 평가"><div class="detail-top"><button id="close-detail" class="detail-return" aria-label="앨범으로 돌아가기">${uiIcon('back')}<span>되돌아가기</span></button><div class="detail-navigation"><button id="previous" ${offset<=0?'disabled':''} aria-label="이전 사진">‹</button><span>${offset+1} / ${ids.length}</span><button id="next" ${offset>=ids.length-1?'disabled':''} aria-label="다음 사진">›</button></div><button id="detail-results">평가결과</button></div>${card(sourcePhotos[id])}<button class="clear-rating" id="clear-rating" ${state.ratings[id]?'':'disabled'}>평가 취소</button></div>`;
+    layer.querySelector('#close-detail').onclick=closePhotoFocus;
+    layer.querySelector('#previous').onclick=()=>openPhoto(ids[offset-1]);
+    layer.querySelector('#next').onclick=()=>openPhoto(ids[offset+1]);
+    layer.querySelector('#detail-results').onclick=()=>{ window.cancelPhotoMotion?.(); state.screen='summary'; persist(); render(); };
+    layer.querySelector('#clear-rating').onclick=()=>update(id,null);
+    layer.querySelectorAll('[data-rate]').forEach(button=>button.onclick=()=>rate(button.dataset.rate));
+    bindSwipe(layer.querySelector('.card'));
   };
   header = function() {
     const ids = reviewIds(), c = counts();
@@ -111,8 +142,9 @@
   };
   card = p => `<div class="photo-stage"><div class="card ${state.dataset==='demo'?'demo-card':'real-card'}" id="photo-card"><div class="photo-viewport">${img(p)}</div></div>${actions(p)}</div>`;
   pick = function() {
-    const c = counts(), ids = reviewIds(), shown = albumPhotos();
-    app.innerHTML = `<div class="review-context"><button class="subtle" id="groups">${state.reviewDates?.length === 1 ? dateTitle(state.reviewDates[0]) : '사진그룹 선택'} ${uiIcon('right')}</button><span>${state.mode === 'card' ? Math.min(ids.indexOf(state.index)+1 || ids.length, ids.length) : ids.length} / ${ids.length}</span></div><nav class="mode-switch" aria-label="사진 보기"><button data-mode="card" class="${state.mode==='card'?'active':''}" aria-pressed="${state.mode==='card'}">한 장씩</button><button data-mode="grid" class="${state.mode==='grid'?'active':''}" aria-pressed="${state.mode==='grid'}">앨범</button></nav>${state.mode === 'card' ? (state.index < total() ? card(sourcePhotos[state.index]) : '<div class="done-card"><div><h3>선택한 사진을 모두 평가했어요</h3><button class="subtle" id="review">다시 보기</button></div></div>') : `<div class="album-filters">${[['all','전체',ids.length],['unrated','미평가',c.unrated],['best','아주 좋음',c.best],['keep','좋음',c.keep],['skip','별로',c.skip]].map(([v,label,n])=>`<button data-albumfilter="${v}" class="${state.albumFilter===v?'active':''}" aria-pressed="${state.albumFilter===v}">${label} ${n}</button>`).join('')}</div>${shown.length ? `<div class="grid album-grid">${shown.map(tile).join('')}</div>` : '<div class="empty">이 등급의 사진이 없어요.</div>'}`}<button class="review-results" id="summary">평가 결과 ${uiIcon('right')}</button>${state.mode==='card' && !state.hintSeen ? '<p class="gesture-hint">두 손가락으로 확대 · 놓으면 원래 크기로</p>' : ''}`;
+    state.mode='grid';
+    const c=counts(), ids=reviewIds(), shown=albumPhotos();
+    app.innerHTML=`<div class="review-context"><button class="subtle" id="groups">${state.reviewDates?.length===1 ? dateTitle(state.reviewDates[0]) : '사진그룹 선택'} ${uiIcon('right')}</button><span>${ids.length-c.unrated} / ${ids.length}장 평가</span></div><p class="album-intro">사진을 누르면 한 장씩 평가할 수 있어요.</p><div class="album-filters">${[['all','전체',ids.length],['unrated','미평가',c.unrated],['best','아주 좋음',c.best],['keep','좋음',c.keep],['skip','별로',c.skip]].map(([v,label,n])=>`<button data-albumfilter="${v}" class="${state.albumFilter===v?'active':''}" aria-pressed="${state.albumFilter===v}">${label} ${n}</button>`).join('')}</div>${shown.length ? `<div class="grid album-grid">${shown.map(tile).join('')}</div>` : '<div class="empty">이 등급의 사진이 없어요.</div>'}<button class="review-results" id="summary">평가 결과 ${uiIcon('right')}</button>`;
   };
   function groupsScreen() {
     const groups = reviewGroups();
@@ -136,8 +168,8 @@
     document.querySelector('#select-all-dates').onclick = () => { const all = app.querySelectorAll('[data-date]:checked').length === groups.length; app.querySelectorAll('[data-date]').forEach(input => input.checked=!all); sync(); };
     app.querySelectorAll('[data-group-start]').forEach(start => start.onclick = () => {
       state.reviewDates = [...app.querySelectorAll('[data-date]:checked')].map(input => input.dataset.date);
-      state.history = []; state.mode = 'card'; state.index = firstUnrated();
-      state.screen = state.index === total() ? 'summary' : 'pick'; persist(); render();
+      state.history = []; state.mode = 'grid'; state.albumFilter = 'all'; state.index = firstUnrated();
+      state.screen = 'pick'; persist(); render();
     });
     const list = app.querySelector('.date-groups'), rail = app.querySelector('.group-scrollbar'), thumb = rail.querySelector('i');
     const updateScroll = () => {
@@ -155,6 +187,7 @@
     document.querySelector('#screen-menu').onclick = menuSheet;
   }
   render = function() {
+    setFocus(false);
     if (groupResize) { groupResize.disconnect(); groupResize = null; }
     if (state.screen !== 'groups') { baseRender(); return; }
     layer.innerHTML=''; modalId=null;
@@ -168,8 +201,9 @@
     const resumeButton = document.querySelector('#resume');
     if (resumeButton) resumeButton.onclick = () => {
       if (state.dataset === 'real' && !sourcePhotos.length && window.PhotoPickAndroid) { resuming = true; PhotoPickAndroid.chooseFolder(); }
-      else if (!state.reviewDates.length) goGroups(); else resume();
+      else if (!state.reviewDates.length) goGroups(); else { state={...fresh(),...saved,screen:'pick',mode:'grid',imported:[],progress:0}; state.index=firstUnrated(); render(); }
     };
+    const unrated = document.querySelector('#unrated'); if (unrated) unrated.onclick = () => { state.mode='grid'; state.albumFilter='unrated'; state.screen='pick'; persist(); render(); };
     const review = document.querySelector('#review'); if (review) review.onclick = () => { state.index=reviewIds()[0] ?? total(); render(); };
     const begin = document.querySelector('#begin'); if (begin) begin.onclick = goGroups;
     const menu = document.querySelector('#screen-menu');

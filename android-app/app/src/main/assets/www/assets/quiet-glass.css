@@ -103,3 +103,25 @@ body,.final-shell{background:#fff}
 .group-scrollbar i{position:absolute;top:0;left:0;width:4px;background:#a4aab3;border-radius:999px;min-height:24px}
 .phone[data-screen="groups"] .group-footer{position:static;flex-shrink:0;padding-top:12px}
 .phone[data-screen="groups"] .group-footer .hint{font-size:11px;line-height:1.5;margin-top:10px}
+/* Album-first review and an immersive, opaque dark inspection surface. */
+.album-intro{font-size:12px;line-height:1.6;color:var(--muted);margin:6px 0 16px}
+.album-grid{max-height:calc(100dvh - 240px);height:auto;overflow-y:auto;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.album-grid .tile{height:138px;border-radius:10px}
+.focus-review.modal{position:fixed;inset:0;display:flex;flex-direction:column;background:#111317;padding:8px 12px 10px;color:#edf0f4;z-index:100;border-radius:0;max-width:none;margin:0}
+.focus-review .detail-top{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:2px;height:52px;min-height:52px;margin:0 0 8px;flex-shrink:0}
+.focus-review .detail-top button{background:none;border:0;border-radius:10px;color:#e4e7ec;min-height:44px;min-width:0;width:auto;padding:0 4px;font-size:12px;white-space:nowrap}
+.focus-review .detail-return{display:flex;align-items:center;gap:3px;justify-self:start}
+.focus-review .detail-return svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7}
+.focus-review .detail-return span{font-size:12px}
+.focus-review .detail-navigation{display:flex;align-items:center;gap:0;font-variant-numeric:tabular-nums}
+.focus-review .detail-navigation span{font-size:13px;min-width:48px;text-align:center;color:#e4e7ec}
+.focus-review .detail-navigation button{width:38px;min-width:38px;font-size:28px;padding:0}
+.focus-review #detail-results{justify-self:end}
+.focus-review .photo-stage{flex:1;min-height:0;gap:12px}
+.focus-review .photo-stage .card{flex:1;height:auto!important;max-height:none;min-height:0;background:transparent;border-radius:4px}
+.focus-review .photo-viewport{background:transparent;border-radius:4px}
+.focus-review .photo-viewport img{object-fit:contain;background:transparent;border-radius:4px}
+.focus-review .photo-stage .overlay{flex-shrink:0;min-height:78px;background:#1b1e24;border-color:#2b3038;box-shadow:none;border-radius:24px}
+.focus-review .clear-rating{min-height:32px;margin:5px 0 0;font-size:11px;color:#aab0ba;flex-shrink:0}
+.focus-review .clear-rating:disabled{visibility:hidden}
+@media(max-width:360px){.focus-review .detail-top button,.focus-review .detail-return span{font-size:11px}.focus-review .detail-navigation button{min-width:32px;width:32px;font-size:27px}}
