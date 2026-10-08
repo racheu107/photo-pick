@@ -85,3 +85,21 @@ body,.final-shell{background:#fff}
 .reading-tip p{font-size:13px;line-height:1.8;color:var(--muted);margin:8px 0 0}
 @media(max-height:700px){.photo-stage .card{height:calc(100dvh - 280px)}.reading-art{height:200px;margin-bottom:0;transform:scale(.88);transform-origin:center bottom}.reading-layer{padding-top:14px;padding-bottom:14px}.reading-tip{margin-top:22px}.reading-layer h2{font-size:21px}}
 @media(prefers-reduced-motion:reduce){.reading-photo{animation:none;will-change:auto}.reading-meter i{transition:none}}
+
+/* Group controls stay visible while the date list scrolls independently. */
+.phone[data-screen="groups"]{height:100dvh;min-height:0;display:flex;flex-direction:column}
+.phone[data-screen="groups"] .header{flex-shrink:0}
+.phone[data-screen="groups"] #app{display:flex;flex-direction:column;flex:1;min-height:0}
+.group-intro-row{display:flex;align-items:center;gap:12px;flex-shrink:0;margin:16px 0 12px}
+.group-intro-row .group-intro{flex:1;min-width:0;font-size:14px;line-height:1.6;font-weight:500;margin:0}
+.group-intro small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:5px}
+.group-quick-start.cta{width:auto;flex-shrink:0;min-height:44px;padding:10px 12px;font-size:12px;border-radius:14px;white-space:nowrap}
+.group-selection{flex-shrink:0;min-height:44px}
+.group-list-area{position:relative;display:flex;flex:1;min-height:0;margin-top:2px;gap:7px}
+.group-list-area .date-groups{flex:1;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0;scrollbar-width:none}
+.group-list-area .date-groups::-webkit-scrollbar{display:none}
+.group-scrollbar{width:4px;flex-shrink:0;background:#f0f1f3;border-radius:999px;margin:8px 0;position:relative;pointer-events:none}
+.group-scrollbar[hidden]{display:none}
+.group-scrollbar i{position:absolute;top:0;left:0;width:4px;background:#a4aab3;border-radius:999px;min-height:24px}
+.phone[data-screen="groups"] .group-footer{position:static;flex-shrink:0;padding-top:12px}
+.phone[data-screen="groups"] .group-footer .hint{font-size:11px;line-height:1.5;margin-top:10px}

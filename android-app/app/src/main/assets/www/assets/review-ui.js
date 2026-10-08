@@ -5,6 +5,7 @@
   const placeNames = new Map();
   let dateDraft = null;
   let resuming = false;
+  let groupResize = null;
   const baseMenu = menuSheet;
   ['onNativeCancel', 'onNativeError'].forEach(name => {
     const callback = window[name];
@@ -35,7 +36,7 @@
       if (!groups.has(key)) groups.set(key, {key, photos:[]});
       groups.get(key).photos.push(p);
     });
-    return [...groups.values()].sort((a,b) => a.key.localeCompare(b.key));
+    return [...groups.values()].sort((a,b) => a.key === 'unknown' ? (b.key === 'unknown' ? 0 : 1) : b.key === 'unknown' ? -1 : b.key.localeCompare(a.key));
   };
   counts = () => {
     const c = {skip:0, keep:0, best:0, unrated:0};
@@ -117,10 +118,11 @@
     const groups = reviewGroups();
     const chosen = dateDraft ?? [];
     const amount = groups.filter(g => chosen.includes(g.key)).reduce((sum,g) => sum+g.photos.length, 0);
-    app.innerHTML = `<p class="group-intro">평가할 사진그룹을 선택하세요.${state.dataset==='demo' ? '<br>예시 촬영일로 구성된 체험 사진이에요.' : ''}</p><div class="group-selection"><span>사진 ${total()}장</span><button class="subtle" id="select-all-dates" aria-pressed="${chosen.length === groups.length}">${chosen.length === groups.length ? '전체 해제' : '전체 선택'}</button></div><div class="date-groups">${groups.map(g => {
+    const scrollTop = app.querySelector('.date-groups')?.scrollTop || 0;
+    app.innerHTML = `<div class="group-intro-row"><p class="group-intro">평가할 촬영일자 그룹을 선택하세요.${state.dataset==='demo' ? '<small>예시 촬영일로 구성된 체험 사진이에요.</small>' : ''}</p><button class="cta secondary group-quick-start" id="start-group-review-top" data-group-start ${amount ? '' : 'disabled'}>선택한 ${amount}장 평가</button></div><div class="group-selection"><button class="subtle" id="select-all-dates" aria-pressed="${chosen.length === groups.length}">${chosen.length === groups.length ? '전체 해제' : '전체 선택'}</button><span>총 사진 ${total()}장</span></div><div class="group-list-area"><div class="date-groups" tabindex="0" role="region" aria-label="촬영일자 그룹 목록">${groups.map(g => {
       const location = g.photos.map(p => placeNames.get(p.nativeKey)).find(Boolean);
       return `<label class="date-group"><input type="checkbox" data-date="${g.key}" ${chosen.includes(g.key)?'checked':''}><span class="date-check">${uiIcon('check')}</span><div class="group-thumbnail">${img(g.photos[0])}</div><div class="group-copy"><b>${dateTitle(g.key)}</b>${location ? `<span class="group-place">${esc(location)} · 일부 사진의 위치 정보</span>` : ''}<small>평가(${g.photos.filter(p=>state.ratings[p.id]).length}/${g.photos.length}장)</small></div></label>`;
-    }).join('')}</div><div class="group-footer"><button class="cta" id="start-group-review" ${amount ? '' : 'disabled'}>선택한 ${amount}장 평가</button><p class="hint">촬영일 정보는 카메라에 기록된 날짜를 사용해요.</p></div>`;
+    }).join('')}</div><div class="group-scrollbar" aria-hidden="true"><i></i></div></div><div class="group-footer"><button class="cta" id="start-group-review" data-group-start ${amount ? '' : 'disabled'}>선택한 ${amount}장 평가</button><p class="hint">촬영일 정보는 카메라에 기록된 날짜를 사용해요.</p></div>`;
     const sync = () => {
       const keys = [...app.querySelectorAll('[data-date]:checked')].map(input => input.dataset.date);
       dateDraft = keys;
@@ -128,20 +130,32 @@
       const all = keys.length === groups.length;
       toggle.textContent = all ? '전체 해제' : '전체 선택'; toggle.setAttribute('aria-pressed', String(all));
       const n = sourcePhotos.filter(p => keys.includes(dateKey(p))).length;
-      const start = document.querySelector('#start-group-review');
-      start.disabled = !n; start.textContent = `선택한 ${n}장 평가`;
+      app.querySelectorAll('[data-group-start]').forEach(start => { start.disabled = !n; start.textContent = `선택한 ${n}장 평가`; });
     };
     app.querySelectorAll('[data-date]').forEach(input => input.onchange = sync);
     document.querySelector('#select-all-dates').onclick = () => { const all = app.querySelectorAll('[data-date]:checked').length === groups.length; app.querySelectorAll('[data-date]').forEach(input => input.checked=!all); sync(); };
-    document.querySelector('#start-group-review').onclick = () => {
+    app.querySelectorAll('[data-group-start]').forEach(start => start.onclick = () => {
       state.reviewDates = [...app.querySelectorAll('[data-date]:checked')].map(input => input.dataset.date);
       state.history = []; state.mode = 'card'; state.index = firstUnrated();
       state.screen = state.index === total() ? 'summary' : 'pick'; persist(); render();
+    });
+    const list = app.querySelector('.date-groups'), rail = app.querySelector('.group-scrollbar'), thumb = rail.querySelector('i');
+    const updateScroll = () => {
+      const overflow = list.scrollHeight - list.clientHeight;
+      rail.hidden = overflow <= 1;
+      if (overflow <= 1) return;
+      const height = Math.max(24, rail.clientHeight * list.clientHeight / list.scrollHeight);
+      thumb.style.height = height + 'px';
+      thumb.style.transform = `translateY(${(rail.clientHeight-height) * list.scrollTop / overflow}px)`;
     };
+    list.addEventListener('scroll', updateScroll, {passive:true});
+    groupResize = new ResizeObserver(updateScroll); groupResize.observe(list);
+    list.scrollTop = scrollTop; updateScroll();
     document.querySelector('#screen-back').onclick = returnHome;
     document.querySelector('#screen-menu').onclick = menuSheet;
   }
   render = function() {
+    if (groupResize) { groupResize.disconnect(); groupResize = null; }
     if (state.screen !== 'groups') { baseRender(); return; }
     layer.innerHTML=''; modalId=null;
     document.querySelector('.phone').dataset.screen='groups'; header(); groupsScreen();
