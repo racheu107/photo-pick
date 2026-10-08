@@ -31,7 +31,8 @@
 @media(max-width:480px) and (max-height:700px){.card{height:clamp(290px,calc(100dvh - 254px),440px);min-height:0}.modal .card{height:clamp(280px,calc(100dvh - 180px),440px);min-height:0}}
 </style>
 <link rel="stylesheet" href="assets/premium.css">
-<link rel="stylesheet" href="assets/native-app.css"></head>
+<link rel="stylesheet" href="assets/native-app.css">
+<link rel="stylesheet" href="assets/ui-polish.css"></head>
 <body>
 <main class="final-shell"><section class="phone" aria-label="Photo Pick 최종 프로토타입"><div class="brand-strip"><span>PHOTO<span class="brand-accent">PICK</span></span><span class="brand-caption">YOUR CAMERA LIBRARY</span></div><header class="header" id="screen-header"></header><div id="app"></div><div id="layer"></div><input id="directory-input" type="file" webkitdirectory multiple accept=".jpg,.jpeg,image/jpeg" hidden><input id="files-input" type="file" multiple accept=".jpg,.jpeg,image/jpeg" hidden></section></main>
 <script src="assets/asset-manifest.js"></script>
@@ -93,7 +94,8 @@ function bind(){const on=(id,fn)=>{const b=document.getElementById(id);if(b)b.on
 document.querySelectorAll('input[type=file]').forEach(input=>input.addEventListener('change',()=>readSelection(Array.from(input.files))));
 document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'&&layer.innerHTML){modalId=null;layer.innerHTML='';return;}if(e.key.toLowerCase()==='z'&&['pick','summary'].includes(state.screen)){e.preventDefault();undo();return;}if(modalId===null&&(state.screen!=='pick'||state.mode!=='card'))return;const value={ArrowLeft:'skip',ArrowRight:'keep',ArrowUp:'best'}[e.key];if(value){e.preventDefault();rate(value);}});render();
 </script>
-<script src="assets/native-app.js"></script></body>
+<script src="assets/native-app.js"></script>
+<script src="assets/ui-motion.js"></script></body>
 </html>
 
 
