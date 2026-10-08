@@ -1,0 +1,134 @@
+/* Quiet gallery: blue is reserved for the primary action and momentary grade feedback. */
+:root{--ink:#202124;--muted:#70757e;--line:#eceef1;--wash:#f5f6f7}
+body,.final-shell{background:#fff}
+.phone{letter-spacing:-.2px}
+.header h1{font-size:20px;font-weight:600;letter-spacing:-.6px}
+.header .icon-button{color:#555b65}
+.phone .blue,.group-selection .subtle,.review-context .subtle,.review-results{color:var(--ink)}
+.cta{border-radius:18px;font-size:15px;min-height:54px}
+.cta.secondary,.sheet .cta,.sheet .cta:not(.secondary){background:#f3f4f6;color:var(--ink);border:1px solid #e9ebef;box-shadow:none}
+.cta:disabled,.cta:not(.secondary):disabled{background:#eff0f3;color:#9297a0;opacity:1;border:0}
+.cta.file-cta{border-radius:18px}
+.connection-art{border-radius:20px;background:#f7f8fa;border:0;box-shadow:inset 0 1px 0 #ffffff}
+.connection-steps li{gap:14px}
+.connection-steps b{font-size:15px;font-weight:500}
+.connection-steps p{color:var(--muted);font-size:12px}
+.phone .resume-panel{background:#fafafa;border:1px solid var(--line);border-radius:18px}
+.phone .resume-panel button{color:var(--ink)}
+.mode-switch{background:#f2f3f5;border-radius:999px;padding:4px;border:1px solid #eff0f2}
+.mode-switch button{color:var(--muted);font-size:13px;border-radius:999px;font-weight:500}
+.mode-switch button.active{background:#fff;color:var(--ink);box-shadow:0 2px 7px #2021240b}
+.review-context{font-size:12px;height:34px}
+.review-context .subtle{font-size:12px}
+.photo-stage{gap:10px}
+.photo-stage .card{border-radius:18px;background:#f7f7f8;height:clamp(220px,calc(100dvh - 302px),650px)}
+.photo-stage .overlay{padding:8px 12px;min-height:78px;border-radius:26px;border:1px solid #e5e7eb;background:linear-gradient(135deg,#ffffffee,#f5f6f8ee);box-shadow:inset 0 1px 0 #fff,0 5px 18px #25293605;gap:0}
+.photo-stage .action-item{position:relative;gap:3px}
+.photo-stage .action-item+.action-item:before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:1px;background:#e2e4e8}
+.photo-stage .action,.photo-stage .action.good,.photo-stage .action.best{background:transparent;color:#686e78;border-radius:18px;max-width:86px;box-shadow:none}
+.photo-stage .action-item span{font-size:12px;color:#555b65}
+.photo-stage .action svg{width:23px;height:23px;stroke-width:1.7}
+.photo-stage .action.best svg{fill:none}
+.photo-stage .action.active{background:#edf0f3;color:var(--ink);outline:none}
+.photo-stage .action.chosen{background:#edf2ff;color:var(--blue);outline:none}
+.photo-stage .action.chosen+span{color:var(--blue)}
+.review-results{font-size:13px;min-height:44px}
+.group-intro{font-size:16px;font-weight:500;color:var(--ink);line-height:1.6;margin:22px 0}
+.group-selection{font-size:13px;min-height:44px}
+.date-group{gap:14px;padding:18px 0}
+.group-thumbnail{width:68px;height:68px;border-radius:14px}
+.group-copy b{font-size:15px;font-weight:600}
+.group-copy small,.group-place{font-size:12px}
+.date-check{border-radius:7px;border-color:#cfd3da}
+.date-group:has(input:checked) .date-check{background:var(--ink);border-color:var(--ink)}
+.group-footer{padding-top:16px}
+.summary-counts{background:#f6f7f8;border-radius:20px}
+.rating-row strong,.rating-row:nth-child(n+3) strong{color:var(--ink)}
+.summary-counts .rating-symbol.best,.summary-counts .rating-symbol.skip{background:#e9ecf0;color:#545b65}
+.summary-counts .rating-symbol.keep{background:#fff;color:#545b65}
+.summary-counts .rating-symbol.best svg{fill:none}
+.filters{background:#f2f3f5;border-radius:999px;padding:4px}
+.filters button{border-radius:999px;font-size:12px;color:#70757e}
+.filters button.active{background:#fff;color:var(--ink);box-shadow:0 2px 7px #2021240b}
+.album-filters button.active{background:#eceef1;border-color:#eceef1;color:var(--ink)}
+.grade-badge.best,.grade-badge.keep{background:#fffffff5;color:#4c535e}
+.grade-badge.best svg{fill:none}
+.destination-panel svg{stroke:#626974}
+.folder-panel>svg{fill:#e6e9ef;stroke:#707680}
+.scan-progress .progress i,.transfer .progress i,.progress i{background:#858c97}
+.modal .photo-stage .overlay{background:#1c222c;border-color:#343a44;box-shadow:none}
+.modal .photo-stage .action,.modal .photo-stage .action.good,.modal .photo-stage .action.best{background:transparent;color:#e2e5e9}
+.modal .photo-stage .action-item span{color:#e2e5e9}
+.modal .photo-stage .action-item+.action-item:before{background:#424851}
+.modal .photo-stage .action.active{background:#353c47;color:#fff}
+.modal .photo-stage .action.chosen{background:#edf2ff;color:var(--blue)}
+.modal .photo-stage .action.chosen+span{color:#dce7ff}
+/* An opaque independent stage. Only the decorative cards are frosted. */
+.reading-layer{position:fixed;inset:0;background:#fff;z-index:100;overflow:auto;padding:24px 22px;justify-content:center;color:var(--ink)}
+.reading-layer h2{font-size:23px;font-weight:600;letter-spacing:-.7px;margin:14px 0 12px;text-align:center;position:relative}
+.reading-layer #reading-count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:center}
+.reading-art{position:relative;width:280px;max-width:100%;height:245px;flex-shrink:0;margin-bottom:10px;isolation:isolate}
+.reading-halo{position:absolute;inset:25px 5px;background:radial-gradient(ellipse,#eceff38c,transparent 70%);border-radius:50%}
+.reading-photo{position:absolute;top:32px;left:75px;width:132px;height:178px;border-radius:19px;overflow:hidden;background:#f2f3f5;border:1px solid #ffffff;box-shadow:0 12px 24px #2933400b,inset 0 1px 0 #ffffff;animation:photo-reading 2.4s ease-in-out infinite;will-change:transform}
+.reading-photo img{width:100%;height:100%;object-fit:cover;filter:blur(3px) saturate(.12);opacity:.65;transform:scale(1.06)}
+.reading-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(145deg,#ffffffa8,#ffffff20 65%,#ffffff88);border:1px solid #ffffffce;border-radius:inherit}
+.reading-photo-0{left:24px;top:45px;transform:rotate(-9deg);animation-name:photo-reading-left;z-index:1;opacity:.65}
+.reading-photo-1{left:124px;top:45px;transform:rotate(9deg);animation-name:photo-reading-right;z-index:1;opacity:.65}
+.reading-photo-2{z-index:2}
+@keyframes photo-reading{0%,100%{transform:translateY(5px) rotate(-2deg)}50%{transform:translateY(-7px) rotate(1deg)}}
+@keyframes photo-reading-left{0%,100%{transform:translate(0,4px) rotate(-9deg)}50%{transform:translate(-7px,-3px) rotate(-6deg)}}
+@keyframes photo-reading-right{0%,100%{transform:translate(0,4px) rotate(9deg)}50%{transform:translate(7px,-3px) rotate(6deg)}}
+.reading-meter{height:3px;width:220px;max-width:85%;margin:24px 0 0;background:#eceef1;border-radius:999px;overflow:hidden;flex-shrink:0}
+.reading-meter i{display:block;height:100%;width:0;background:#858c97;border-radius:999px;transition:width 160ms ease}
+.reading-tip{margin:36px 0 0;padding:18px 0 0;width:280px;max-width:100%;border-top:1px solid var(--line);background:none;border-radius:0;text-align:center}
+.reading-tip b{font-size:12px;font-weight:500;color:#606771}
+.reading-tip p{font-size:13px;line-height:1.8;color:var(--muted);margin:8px 0 0}
+@media(max-height:700px){.photo-stage .card{height:calc(100dvh - 280px)}.reading-art{height:200px;margin-bottom:0;transform:scale(.88);transform-origin:center bottom}.reading-layer{padding-top:14px;padding-bottom:14px}.reading-tip{margin-top:22px}.reading-layer h2{font-size:21px}}
+@media(prefers-reduced-motion:reduce){.reading-photo{animation:none;will-change:auto}.reading-meter i{transition:none}}
+
+/* Group controls stay visible while the date list scrolls independently. */
+.phone[data-screen="groups"]{height:100dvh;min-height:0;display:flex;flex-direction:column}
+.phone[data-screen="groups"] .header{flex-shrink:0}
+.phone[data-screen="groups"] #app{display:flex;flex-direction:column;flex:1;min-height:0}
+.group-intro-row{display:flex;align-items:center;gap:12px;flex-shrink:0;margin:16px 0 12px}
+.group-intro-row .group-intro{flex:1;min-width:0;font-size:14px;line-height:1.6;font-weight:500;margin:0}
+.group-intro small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:5px}
+.group-quick-start.cta{width:auto;flex-shrink:0;min-height:44px;padding:10px 12px;font-size:12px;border-radius:14px;white-space:nowrap}
+.group-selection{flex-shrink:0;min-height:44px}
+.group-list-area{position:relative;display:flex;flex:1;min-height:0;margin-top:2px;gap:7px}
+.group-list-area .date-groups{flex:1;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;margin:0;scrollbar-width:none}
+.group-list-area .date-groups::-webkit-scrollbar{display:none}
+.group-scrollbar{width:4px;flex-shrink:0;background:#f0f1f3;border-radius:999px;margin:8px 0;position:relative;pointer-events:none}
+.group-scrollbar[hidden]{display:none}
+.group-scrollbar i{position:absolute;top:0;left:0;width:4px;background:#a4aab3;border-radius:999px;min-height:24px}
+.phone[data-screen="groups"] .group-footer{position:static;flex-shrink:0;padding-top:12px}
+.phone[data-screen="groups"] .group-footer .hint{font-size:11px;line-height:1.5;margin-top:10px}
+/* Album-first review and an immersive, opaque dark inspection surface. */
+.album-intro{font-size:12px;line-height:1.6;color:var(--muted);margin:6px 0 16px}
+.album-grid{max-height:calc(100dvh - 240px);height:auto;overflow-y:auto;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.album-grid .tile{height:138px;border-radius:10px}
+.focus-review.modal{position:fixed;inset:0;display:flex;flex-direction:column;background:#111317;padding:8px 12px 10px;color:#edf0f4;z-index:100;border-radius:0;max-width:none;margin:0}
+.focus-review .detail-top{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:2px;height:52px;min-height:52px;margin:0 0 8px;flex-shrink:0}
+.focus-review .detail-top button{background:none;border:0;border-radius:10px;color:#e4e7ec;min-height:44px;min-width:0;width:auto;padding:0 4px;font-size:12px;white-space:nowrap}
+.focus-review .detail-return{display:flex;align-items:center;gap:3px;justify-self:start}
+.focus-review .detail-return svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7}
+.focus-review .detail-return span{font-size:12px}
+.focus-review .detail-navigation{display:flex;align-items:center;gap:0;font-variant-numeric:tabular-nums}
+.focus-review .detail-navigation span{font-size:13px;min-width:48px;text-align:center;color:#e4e7ec}
+.focus-review .detail-navigation button{width:38px;min-width:38px;font-size:28px;padding:0}
+.focus-review #detail-results{justify-self:end}
+.focus-review .photo-stage{flex:1;min-height:0;gap:12px}
+.focus-review .photo-stage .card{flex:1;height:auto!important;max-height:none;min-height:0;background:transparent;border-radius:4px}
+.focus-review .photo-viewport{background:transparent;border-radius:4px}
+.focus-review .photo-viewport img{object-fit:contain;background:transparent;border-radius:4px}
+.focus-review .photo-stage .overlay{flex-shrink:0;min-height:78px;background:#1b1e24;border-color:#2b3038;box-shadow:none;border-radius:24px}
+.focus-review .clear-rating{min-height:32px;margin:5px 0 0;font-size:11px;color:#aab0ba;flex-shrink:0}
+.focus-review .clear-rating:disabled{visibility:hidden}
+@media(max-width:360px){.focus-review .detail-top button,.focus-review .detail-return span{font-size:11px}.focus-review .detail-navigation button{min-width:32px;width:32px;font-size:27px}}
+
+/* Keep the inspection surface opaque; only the image layers crossfade. */
+.focus-review.modal{animation:none}
+.focus-review .photo-viewport{position:relative}
+.focus-review .photo-transition-old{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.focus-review .photo-stage{position:relative}
+.focus-review .photo-wait{position:absolute;left:12px;right:12px;bottom:88px;margin:0;padding:8px 10px;background:#111317ed;border-radius:8px;color:#c8cdd6;font-size:11px;line-height:1.5;text-align:center;pointer-events:none}

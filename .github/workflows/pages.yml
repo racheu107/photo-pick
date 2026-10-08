@@ -24,6 +24,7 @@ jobs:
           mkdir -p pages-dist
           cp index.html pages-dist/
           cp -R assets pages-dist/assets
+          cp -R app pages-dist/app
           touch pages-dist/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
