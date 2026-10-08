@@ -48,7 +48,7 @@
       {...fresh(), dataset:'real', descriptors:candidate.descriptors, folderName:candidate.folderName, session:'sd-jpeg-v1', screen:'scan', progress:100};
     homeMessage = ''; persist(); render();
   };
-  confirmFolder = () => device.chooseFolder();
+  confirmFolder = () => device.chooseAnotherFolder();
   bind = function() {
     originalBind();
     const files = document.querySelector('#files');
@@ -81,7 +81,11 @@
     goBack();
   };
   window.onNativeReading = () => {
-    layer.innerHTML = '<div class="reading-layer" role="status"><div class="ring">JPEG</div><p>SD카드 사진을 읽는 중…</p></div>';
+    layer.innerHTML = '<div class="reading-layer" role="status"><div class="reading-spinner" aria-hidden="true"></div><h2>사진 불러오는 중...</h2><small id="reading-count">사진 목록 확인 중</small><div class="reading-tip"><b>사용 팁</b><p>사진을 두 손가락으로 확대해 확인하세요.<br>손을 놓으면 원래 크기로 돌아와요.</p></div></div>';
+  };
+  window.onNativeReadingProgress = progress => {
+    const count = document.querySelector('#reading-count');
+    if (count) count.textContent = Number.isFinite(progress.total) ? `불러온 ${progress.completed}장 / 전체 ${progress.total}장` : `사진 목록 확인 중 · ${progress.discovered || 0}장 발견`;
   };
   window.onNativeCancel = () => { layer.innerHTML = ''; };
   window.onNativeError = result => {

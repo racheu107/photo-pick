@@ -258,7 +258,12 @@ public class MainActivity extends Activity {
         Photo photo = new Photo();
         photo.key = key(uri); photo.uri = uri; photo.name = name;
         photo.path = path; photo.size = Math.max(0, size); photo.mtime = Math.max(0, mtime);
-        try (InputStream input = getContentResolver().openInputStream(uri)) {
+        found.add(photo);
+        if (found.size() % 100 == 0) event("onNativeReadingProgress", json("discovered", found.size()));
+    }
+
+    private void readMetadata(Photo photo) {
+        try (InputStream input = getContentResolver().openInputStream(photo.uri)) {
             if (input != null) {
                 ExifInterface exif = new ExifInterface(input);
                 String date = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
@@ -274,8 +279,6 @@ public class MainActivity extends Activity {
                 if (exif.getLatLong(location)) photo.coordinates = new double[]{location[0], location[1]};
             }
         } catch (Exception ignored) { }
-        found.add(photo);
-        if (found.size() % 20 == 0) event("onNativeReadingProgress", json("completed", found.size()));
     }
 
     private void scan(List<Uri> selected, boolean tree) {
@@ -316,6 +319,13 @@ public class MainActivity extends Activity {
                                 number(c, OpenableColumns.SIZE), number(c, DocumentsContract.Document.COLUMN_LAST_MODIFIED), uri.toString());
                     }
                 }
+            }
+            event("onNativeReadingProgress", json("completed", 0, "total", found.size()));
+            for (int i = 0; i < found.size(); i++) {
+                if (Thread.currentThread().isInterrupted()) throw new InterruptedException();
+                readMetadata(found.get(i));
+                if ((i + 1) % 10 == 0 || i + 1 == found.size())
+                    event("onNativeReadingProgress", json("completed", i + 1, "total", found.size()));
             }
             JSONArray list = new JSONArray();
             for (Photo photo : found) {

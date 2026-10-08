@@ -109,3 +109,15 @@ button:not(:disabled):active{transform:scale(.97)}
 @keyframes grade-confirm{0%{transform:scale(.85)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
 @media(max-height:700px){.photo-stage .card{height:calc(100dvh - 265px)}.photo-stage .overlay{padding-top:10px;min-height:78px}.gesture-hint{display:none}}
 @media(prefers-reduced-motion:reduce){.photo-stage .action.chosen svg{animation:none}}
+
+/* Loading and group selection refinements. */
+.reading-layer h2{font-size:20px;letter-spacing:-.5px;margin:24px 0 10px}
+.reading-layer #reading-count{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.reading-spinner{width:40px;height:40px;border:3px solid #e8eef7;border-top-color:var(--blue);border-radius:50%;animation:reading-spin 1s linear infinite}
+@keyframes reading-spin{to{transform:rotate(360deg)}}
+.reading-tip{margin:32px 24px 0;padding:18px 22px;border-radius:12px;background:#f5f7fa;text-align:center}
+.reading-tip b{font-size:12px;color:var(--blue)}
+.reading-tip p{font-size:13px;line-height:1.8;color:var(--muted);margin:8px 0 0}
+.phone .resume-panel{margin:10px 0 12px;padding:12px;text-align:center;background:#f5f7fa}
+.phone .resume-panel button{margin:auto;min-height:44px}
+@media(prefers-reduced-motion:reduce){.reading-spinner{animation:none}}
