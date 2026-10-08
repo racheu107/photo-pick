@@ -24,8 +24,14 @@
     return c;
   };
   firstUnrated = () => reviewIds().find(id => !state.ratings[id]) ?? total();
-  selected = () => sourcePhotos.filter(p => reviewIds().includes(p.id) && (state.ratings[p.id] === 'best' || (state.scope === 'combined' && state.ratings[p.id] === 'keep')));
-  albumPhotos = () => sourcePhotos.filter(p => reviewIds().includes(p.id) && (state.albumFilter === 'all' || (state.albumFilter === 'unrated' ? !state.ratings[p.id] : state.ratings[p.id] === state.albumFilter)));
+  selected = () => {
+    const ids = new Set(reviewIds());
+    return sourcePhotos.filter(p => ids.has(p.id) && (state.ratings[p.id] === 'best' || (state.scope === 'combined' && state.ratings[p.id] === 'keep')));
+  };
+  albumPhotos = () => {
+    const ids = new Set(reviewIds());
+    return sourcePhotos.filter(p => ids.has(p.id) && (state.albumFilter === 'all' || (state.albumFilter === 'unrated' ? !state.ratings[p.id] : state.ratings[p.id] === state.albumFilter)));
+  };
   persist = function() {
     basePersist();
     saved.reviewDates = state.reviewDates || [];

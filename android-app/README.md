@@ -1,12 +1,14 @@
 # Photo Pick Android
 
-Android 10 이상용 첫 앱 버전입니다. 웹에서 확정한 화이트·차콜·블루 디자인과 세 단계 평가를 앱 안에 포함합니다. 네트워크 없이 실행하며 사진을 서버로 올리지 않습니다.
+Android 10 이상용 앱입니다. 화이트·차콜·블루 디자인과 세 단계 평가를 앱 안에 포함합니다. 사진을 서버로 올리지 않습니다. 촬영 위치의 지명 안내는 기기 Geocoder 서비스의 지원 및 연결 상태에 따라 표시됩니다.
 
 ## 기능
 
-- 시스템 폴더 선택에서 SD카드의 DCIM 등 JPEG 폴더 선택
+- 연결된 외장 저장소에서 폴더 선택 시작, 승인했던 폴더 재연결 및 다른 폴더 선택
 - 하위 폴더 JPEG 읽기와 원본 비율 미리보기
-- 카드 스와이프·앨범에서 별로 / 좋음 / 아주 좋음 평가
+- EXIF 촬영일별 그룹 선택, 촬영일 없음 별도 그룹, 장소는 날짜 아래 보조 안내
+- 사진 밖의 버튼·앨범에서 별로 / 좋음 / 아주 좋음 평가 (스와이프 평가 없음)
+- 두 손가락 핀치 1~3배 확대, 모든 손가락을 떼면 원복, 확대 시 고해상도 미리보기
 - 같은 폴더 재선택 시 평가 복원
 - 평가 결과에서 아주 좋음만 / 좋음까지 포함 선택
 - 원본 JPEG를 갤러리의 Photo Pick 앨범(Pictures/Photo Pick)에 저장
@@ -22,7 +24,7 @@ Android Studio에서 이 폴더를 열거나, JDK 17과 Android SDK 35 환경에
 ./gradlew assembleDebug lintDebug
 ```
 
-GitHub Actions의 Build Android APK 작업에서도 빌드합니다. 성공한 실행의 PhotoPick-debug-apk 아티팩트에 설치용 app-debug.apk가 있습니다. 첫 버전은 테스트용 debug APK이며 Play Store 배포용 서명은 포함하지 않습니다.
+GitHub Actions의 Build Android APK 작업에서도 빌드합니다. 성공한 실행의 PhotoPick-debug-apk 아티팩트에 설치용 app-debug.apk가 있습니다. 배포 파일은 테스트용 debug APK이며 Play Store 배포용 서명은 포함하지 않습니다.
 
 ## 실제 기기 확인
 
