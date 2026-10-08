@@ -49,6 +49,8 @@ public class MainActivity extends Activity {
     private static final String HOST = "app.photopick.local";
     private static final int FOLDER = 10, FILES = 11;
     private WebView web;
+    private AppUpdater updater;
+    private boolean checkedUpdates;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private final ExecutorService locationWorker = Executors.newSingleThreadExecutor();
     private final Map<String, Photo> photos = new ConcurrentHashMap<>();
@@ -65,6 +67,7 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
+        updater = new AppUpdater(this);
         web = new WebView(this);
         FrameLayout container = new FrameLayout(this);
         container.setBackgroundColor(android.graphics.Color.WHITE);
@@ -87,6 +90,9 @@ public class MainActivity extends Activity {
         web.getSettings().setAllowContentAccess(false);
         web.addJavascriptInterface(new Bridge(), "PhotoPickAndroid");
         web.setWebViewClient(new WebViewClient() {
+            @Override public void onPageFinished(WebView view, String url) {
+                if (!checkedUpdates && url.equals("https://" + HOST + "/")) { checkedUpdates = true; updater.check(false); }
+            }
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 return !HOST.equals(r.getUrl().getHost());
             }
@@ -136,7 +142,17 @@ public class MainActivity extends Activity {
         return result;
     }
 
+    void whenUpdateIdle(boolean manual, Runnable action) {
+        if (saving) return;
+        web.evaluateJavascript("typeof state !== 'undefined' && state.screen === 'home' && !document.querySelector('#layer').innerHTML", result -> {
+            if ("true".equals(result) && !saving && hasWindowFocus()) action.run();
+        });
+    }
+
+    @Override protected void onResume() { super.onResume(); if (updater != null) updater.resume(); }
+
     public class Bridge {
+        @JavascriptInterface public void checkUpdates() { runOnUiThread(() -> { if (!saving) updater.check(true); }); }
         @JavascriptInterface public void chooseFolder() { choose(FOLDER); }
         @JavascriptInterface public void chooseAnotherFolder() { runOnUiThread(() -> openFolderPicker()); }
         @JavascriptInterface public void describePlaces(String keys) {
@@ -394,5 +410,5 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() { web.evaluateJavascript("window.nativeBack && window.nativeBack()", null); }
-    @Override protected void onDestroy() { cancelled.set(true); worker.shutdownNow(); locationWorker.shutdownNow(); web.removeJavascriptInterface("PhotoPickAndroid"); web.destroy(); super.onDestroy(); }
+    @Override protected void onDestroy() { if (updater != null) updater.destroy(); cancelled.set(true); worker.shutdownNow(); locationWorker.shutdownNow(); web.removeJavascriptInterface("PhotoPickAndroid"); web.destroy(); super.onDestroy(); }
 }

@@ -17,6 +17,10 @@
   };
   menuSheet = function() {
     baseMenu();
+    if (state.screen === 'home' && window.PhotoPickAndroid?.checkUpdates) {
+      layer.querySelector('#close-sheet').insertAdjacentHTML('beforebegin', '<button class="cta secondary" id="check-update">앱 업데이트 확인</button>');
+      layer.querySelector('#check-update').onclick = () => { layer.innerHTML=''; PhotoPickAndroid.checkUpdates(); };
+    }
     if (state.screen === "groups") layer.querySelector("#menu-home").onclick = returnHome;
   };
   demoPhotos.forEach(p => { p.captureDate = p.id < 5 ? '2026-10-06' : '2026-10-07'; });
