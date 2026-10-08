@@ -95,6 +95,7 @@ document.querySelectorAll('input[type=file]').forEach(input=>input.addEventListe
 document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='Escape'&&layer.innerHTML){modalId=null;layer.innerHTML='';return;}if(e.key.toLowerCase()==='z'&&['pick','summary'].includes(state.screen)){e.preventDefault();undo();return;}if(modalId===null&&(state.screen!=='pick'||state.mode!=='card'))return;const value={ArrowLeft:'skip',ArrowRight:'keep',ArrowUp:'best'}[e.key];if(value){e.preventDefault();rate(value);}});render();
 </script>
 <script src="assets/native-app.js"></script>
+<script src="assets/review-ui.js"></script>
 <script src="assets/ui-motion.js"></script></body>
 </html>
 

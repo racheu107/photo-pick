@@ -43,7 +43,7 @@
   activateCandidate = function(candidate, same) {
     if (!candidate.nativePhotos) return originalActivate(candidate, same);
     clearInterval(scanTimer); clearInterval(transferTimer); revokePhotos();
-    sourcePhotos = candidate.nativePhotos.map((p, id) => ({id, label:p.name, mtime:p.mtime, url:p.url, nativeKey:p.key}));
+    sourcePhotos = candidate.nativePhotos.map((p, id) => ({id, label:p.name, mtime:p.mtime, url:p.url, nativeKey:p.key, captureDate:p.captureDate || '', capturedAt:p.capturedAt || '', hasLocation:!!p.hasLocation}));
     state = same ? {...fresh(), ...saved, screen:'scan', imported:[], progress:100} :
       {...fresh(), dataset:'real', descriptors:candidate.descriptors, folderName:candidate.folderName, session:'sd-jpeg-v1', screen:'scan', progress:100};
     homeMessage = ''; persist(); render();
@@ -92,7 +92,7 @@
   window.onNativePhotos = result => {
     layer.innerHTML = '';
     if (!result.photos.length) { notice('JPEG 사진이 없어요. DCIM 등 사진이 있는 폴더를 선택해 주세요.'); return; }
-    const photos = result.photos.sort((a,b) => a.mtime-b.mtime || a.path.localeCompare(b.path));
+    const photos = result.photos.sort((a,b) => (a.capturedAt || '9999').localeCompare(b.capturedAt || '9999') || a.path.localeCompare(b.path));
     confirmCandidate({dataset:'real', nativePhotos:photos, descriptors:photos.map(p => ({path:p.path,name:p.name,size:p.size,mtime:p.mtime})), folderName:result.folderName});
   };
   window.onNativeSaveProgress = progress => {

@@ -1,11 +1,19 @@
 package com.photopick.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.ImageDecoder;
+import android.graphics.Insets;
+import android.media.ExifInterface;
+import android.location.Geocoder;
+import android.location.Address;
+import android.os.Build;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
@@ -18,6 +26,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.ByteArrayInputStream;
@@ -41,6 +50,7 @@ public class MainActivity extends Activity {
     private static final int FOLDER = 10, FILES = 11;
     private WebView web;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private final ExecutorService locationWorker = Executors.newSingleThreadExecutor();
     private final Map<String, Photo> photos = new ConcurrentHashMap<>();
     private final AtomicBoolean cancelled = new AtomicBoolean();
     private volatile boolean saving = false;
@@ -49,17 +59,28 @@ public class MainActivity extends Activity {
         String key, name, path;
         Uri uri;
         long size, mtime;
+        String captureDate = "", capturedAt = "";
+        double[] coordinates;
     }
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         web = new WebView(this);
-        setContentView(web);
-        web.setOnApplyWindowInsetsListener((view, insets) -> {
-            view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
-                    insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+        FrameLayout container = new FrameLayout(this);
+        container.setBackgroundColor(android.graphics.Color.WHITE);
+        container.addView(web, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(container);
+        container.setOnApplyWindowInsetsListener((view, insets) -> {
+            if (Build.VERSION.SDK_INT >= 30) {
+                Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            } else {
+                view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                        insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            }
             return insets;
         });
+        container.requestApplyInsets();
         web.getSettings().setJavaScriptEnabled(true);
         web.getSettings().setDomStorageEnabled(true);
         web.getSettings().setAllowFileAccess(false);
@@ -80,7 +101,8 @@ public class MainActivity extends Activity {
                         Bitmap bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(getContentResolver(), p.uri),
                                 (decoder, info, source) -> {
                                     int side = Math.max(info.getSize().getWidth(), info.getSize().getHeight());
-                                    decoder.setTargetSampleSize(Math.max(1, (int)Math.ceil(side / 1200.0)));
+                                    int maxSide = "1".equals(uri.getQueryParameter("detail")) ? 3600 : 1200;
+                                    decoder.setTargetSampleSize(Math.max(1, (int)Math.ceil(side / (double)maxSide)));
                                     decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
                                 });
                         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -116,6 +138,31 @@ public class MainActivity extends Activity {
 
     public class Bridge {
         @JavascriptInterface public void chooseFolder() { choose(FOLDER); }
+        @JavascriptInterface public void chooseAnotherFolder() { runOnUiThread(() -> openFolderPicker()); }
+        @JavascriptInterface public void describePlaces(String keys) {
+            locationWorker.execute(() -> {
+                JSONObject places = new JSONObject();
+                try {
+                    JSONArray ids = new JSONArray(keys);
+                    Geocoder geocoder = new Geocoder(MainActivity.this, java.util.Locale.KOREAN);
+                    if (Geocoder.isPresent()) for (int i = 0; i < ids.length(); i++) {
+                        Photo p = photos.get(ids.getString(i));
+                        if (p == null || p.coordinates == null) continue;
+                        try {
+                            List<Address> found = geocoder.getFromLocation(p.coordinates[0], p.coordinates[1], 1);
+                            if (found != null && !found.isEmpty()) {
+                                Address address = found.get(0);
+                                String area = address.getSubLocality() != null ? address.getSubLocality() : address.getLocality();
+                                String region = address.getAdminArea();
+                                String text = ((region == null ? "" : region) + " " + (area == null ? "" : area)).trim();
+                                if (!text.isEmpty()) places.put(p.key, text);
+                            }
+                        } catch (Exception ignored) { }
+                    }
+                } catch (Exception ignored) { }
+                event("onNativePlaces", json("places", places));
+            });
+        }
         @JavascriptInterface public void chooseFiles() { choose(FILES); }
         @JavascriptInterface public void savePhotos(String keys) {
             synchronized (MainActivity.this) {
@@ -132,6 +179,21 @@ public class MainActivity extends Activity {
     private void choose(int request) {
         runOnUiThread(() -> {
             if (saving) return;
+            if (request == FOLDER) {
+                String previous = getPreferences(MODE_PRIVATE).getString("lastFolder", "");
+                if (!previous.isEmpty()) {
+                    event("onNativeReading", json());
+                    worker.execute(() -> {
+                        Uri root = Uri.parse(previous);
+                        try (Cursor cursor = getContentResolver().query(DocumentsContract.buildDocumentUriUsingTree(root,
+                                DocumentsContract.getTreeDocumentId(root)), null, null, null, null)) {
+                            if (cursor == null || !cursor.moveToFirst()) throw new IllegalStateException();
+                            scan(java.util.Collections.singletonList(root), true);
+                        } catch (Exception e) { runOnUiThread(() -> { event("onNativeCancel", json()); openFolderPicker(); }); }
+                    });
+                } else openFolderPicker();
+                return;
+            }
             Intent intent = new Intent(request == FOLDER ? Intent.ACTION_OPEN_DOCUMENT_TREE : Intent.ACTION_OPEN_DOCUMENT);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
             if (request == FILES) {
@@ -142,6 +204,27 @@ public class MainActivity extends Activity {
             try { startActivityForResult(intent, request); }
             catch (Exception e) { event("onNativeError", json("message", "사진 선택 화면을 열 수 없어요.")); }
         });
+    }
+
+    private void openFolderPicker() {
+        if (saving) return;
+        List<StorageVolume> volumes = new ArrayList<>();
+        StorageManager manager = (StorageManager)getSystemService(STORAGE_SERVICE);
+        for (StorageVolume volume : manager.getStorageVolumes())
+            if (volume.isRemovable() && android.os.Environment.MEDIA_MOUNTED.equals(volume.getState())) volumes.add(volume);
+        if (volumes.size() > 1) {
+            String[] names = new String[volumes.size()];
+            for (int i = 0; i < names.length; i++) names[i] = volumes.get(i).getDescription(this);
+            new AlertDialog.Builder(this).setTitle("연결된 저장소 선택").setItems(names,
+                    (dialog, index) -> launchFolder(volumes.get(index))).setNegativeButton("취소", null).show();
+        } else launchFolder(volumes.isEmpty() ? null : volumes.get(0));
+    }
+
+    private void launchFolder(StorageVolume volume) {
+        Intent intent = volume == null ? new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE) : volume.createOpenDocumentTreeIntent();
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(intent, FOLDER); }
+        catch (Exception e) { event("onNativeError", json("message", "사진 폴더 선택 화면을 열 수 없어요.")); }
     }
 
     @Override protected void onActivityResult(int request, int result, Intent data) {
@@ -158,6 +241,7 @@ public class MainActivity extends Activity {
             }
             catch (SecurityException ignored) { }
         }
+        if (request == FOLDER && !selected.isEmpty()) getPreferences(MODE_PRIVATE).edit().putString("lastFolder", selected.get(0).toString()).apply();
         event("onNativeReading", json());
         worker.execute(() -> scan(selected, request == FOLDER));
     }
@@ -174,7 +258,24 @@ public class MainActivity extends Activity {
         Photo photo = new Photo();
         photo.key = key(uri); photo.uri = uri; photo.name = name;
         photo.path = path; photo.size = Math.max(0, size); photo.mtime = Math.max(0, mtime);
+        try (InputStream input = getContentResolver().openInputStream(uri)) {
+            if (input != null) {
+                ExifInterface exif = new ExifInterface(input);
+                String date = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL);
+                if (date != null && date.matches("\\d{4}:\\d{2}:\\d{2} \\d{2}:\\d{2}:\\d{2}")) {
+                    java.text.SimpleDateFormat parser = new java.text.SimpleDateFormat("yyyy:MM:dd HH:mm:ss", java.util.Locale.ROOT);
+                    parser.setLenient(false);
+                    if (parser.parse(date) != null) {
+                        photo.captureDate = date.substring(0, 10).replace(':', '-');
+                        photo.capturedAt = date;
+                    }
+                }
+                float[] location = new float[2];
+                if (exif.getLatLong(location)) photo.coordinates = new double[]{location[0], location[1]};
+            }
+        } catch (Exception ignored) { }
         found.add(photo);
+        if (found.size() % 20 == 0) event("onNativeReadingProgress", json("completed", found.size()));
     }
 
     private void scan(List<Uri> selected, boolean tree) {
@@ -220,6 +321,7 @@ public class MainActivity extends Activity {
             for (Photo photo : found) {
                 photos.put(photo.key, photo);
                 list.put(json("key", photo.key, "name", photo.name, "path", photo.path, "size", photo.size, "mtime", photo.mtime,
+                        "captureDate", photo.captureDate, "capturedAt", photo.capturedAt, "hasLocation", photo.coordinates != null,
                         "url", "https://" + HOST + "/photo/" + photo.key));
             }
             event("onNativePhotos", json("folderName", folderName, "photos", list));
@@ -282,5 +384,5 @@ public class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() { web.evaluateJavascript("window.nativeBack && window.nativeBack()", null); }
-    @Override protected void onDestroy() { cancelled.set(true); worker.shutdownNow(); web.removeJavascriptInterface("PhotoPickAndroid"); web.destroy(); super.onDestroy(); }
+    @Override protected void onDestroy() { cancelled.set(true); worker.shutdownNow(); locationWorker.shutdownNow(); web.removeJavascriptInterface("PhotoPickAndroid"); web.destroy(); super.onDestroy(); }
 }
