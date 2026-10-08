@@ -152,7 +152,10 @@ public class MainActivity extends Activity {
         if (data.getClipData() != null) for (int i = 0; i < data.getClipData().getItemCount(); i++) selected.add(data.getClipData().getItemAt(i).getUri());
         else if (data.getData() != null) selected.add(data.getData());
         for (Uri uri : selected) {
-            try { getContentResolver().takePersistableUriPermission(uri, data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION); }
+            try {
+                if ((data.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0)
+                    getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            }
             catch (SecurityException ignored) { }
         }
         event("onNativeReading", json());
