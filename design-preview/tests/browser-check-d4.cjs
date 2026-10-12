@@ -1,0 +1,94 @@
+const {chromium} = require('C:/Users/User/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const out = 'D:/CodexBuild/PhotoPick-design-d4-20261009/verification';
+fs.mkdirSync(out,{recursive:true});
+(async()=>{
+  const browser = await chromium.launch({headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
+  const context = await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1});
+  const page = await context.newPage(); const errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  const settle=()=>page.waitForFunction(()=>!window.isPhotoMotionBusy?.());
+  const current=()=>page.evaluate(()=>({id:modalId,index:state.index,ratings:{...state.ratings},history:state.history.length}));
+  const open=async id=>{await page.evaluate(id=>openPhoto(id),id);await settle();};
+  const gesture=async(dx,dy,checkPreview=false)=>{
+    const box=await page.locator('.focus-review .card').boundingBox();
+    const x=box.x+box.width*.5,y=box.y+box.height*.45;
+    await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y+dy,{steps:8});
+    if(checkPreview) assert.match(await page.locator('.gesture-feedback .gesture-text').innerText(),/좋음/);
+    await page.mouse.up();await settle();
+  };
+  await page.goto('http://127.0.0.1:8771/',{waitUntil:'networkidle'});
+  await page.evaluate(()=>startFolder());
+  await page.locator('#select-all-dates').click();await page.locator('#start-group-review').click();
+  await page.screenshot({path:out+'/album-390.png'});
+  await open(0);
+  await page.locator('[data-rate="keep"]').click();await settle();
+  assert.equal((await current()).id,0);assert.equal((await current()).ratings[0],'keep');
+  await page.locator('[data-rate="keep"]').click();await settle();assert.equal((await current()).ratings[0],undefined);
+  await page.locator('[data-rate="best"]').click();await settle();assert.equal((await current()).ratings[0],'best');
+  assert.equal(await page.locator('[data-rate="best"]').getAttribute('aria-pressed'),'true');
+  await gesture(0,160,true);assert.equal((await current()).id,1);assert.equal((await current()).ratings[0],'best');
+  await page.locator('#focus-undo').click();await settle();assert.equal((await current()).id,0);assert.equal((await current()).ratings[0],'best');
+  await gesture(-140,0);assert.equal((await current()).id,1);
+  await gesture(0,160);assert.equal((await current()).id,2);assert.equal((await current()).ratings[1],'keep');
+  await page.locator('#focus-undo').click();await settle();assert.equal((await current()).id,1);assert.equal((await current()).ratings[1],undefined);
+  await page.locator('[data-rate="skip"]').click();await settle();assert.equal((await current()).ratings[1],'skip');
+  await page.locator('[data-rate="keep"]').click();await settle();assert.equal((await current()).ratings[1],'keep');
+  await page.locator('[data-rate="best"]').click();await settle();assert.equal(await page.locator('[data-rate="best"]').getAttribute('aria-pressed'),'true');
+  await page.locator('[data-rate="best"]').click();await settle();assert.equal((await current()).ratings[1],'keep');await page.locator('[data-rate="keep"]').click();await settle();assert.equal((await current()).ratings[1],undefined);
+  await gesture(8,8);assert.equal((await current()).id,1);
+  await gesture(120,0);assert.equal((await current()).id,0);
+  await gesture(130,0);assert.equal((await current()).id,0);
+  for(let i=0;i<6;i++){await gesture(-130,0);await gesture(130,0);}
+  assert.equal(await page.locator('.gesture-feedback').count(),1);
+  await open(11);await gesture(0,160);assert.equal((await current()).id,11);assert.equal((await current()).ratings[11],'keep');
+  assert.match(await page.locator('#focus-status').innerText(),/마지막/);
+  await page.locator('#focus-undo').click();await settle();assert.equal((await current()).ratings[11],undefined);
+  // Navigation failures must not change the displayed/persisted position or consume Undo.
+  await open(1);
+  const oldUrl=await page.evaluate(()=>sourcePhotos[2].url);
+  await page.route('**/intentional-missing-photo.png',r=>r.abort());
+  await page.evaluate(()=>{sourcePhotos[2].url='intentional-missing-photo.png';});
+  const before=await current();await page.evaluate(()=>previewNavigate(1));await settle();
+  assert.equal((await current()).id,1);assert.equal((await current()).index,1);assert.equal((await current()).history,before.history);
+  await page.evaluate(()=>previewSwipeGood());await settle();assert.equal((await current()).id,1);assert.equal((await current()).ratings[1],'keep');
+  await page.locator('#focus-undo').click();await settle();assert.equal((await current()).ratings[1],undefined);
+  await page.evaluate(url=>{sourcePhotos[2].url=url;},oldUrl);
+  // A selected date scope can contain nonconsecutive IDs.
+  await page.evaluate(()=>{state.reviewDates=['2026-10-08','2026-10-07'];});
+  await open(2);await gesture(-130,0);assert.equal((await current()).id,8);
+  await page.locator('#focus-undo').click();await settle();assert.equal((await current()).id,2);
+  await page.evaluate(()=>{state.reviewDates=[];});await open(1);
+  await page.locator('[data-rate="best"]').click();await settle();
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('[data-rate="keep"]').getAttribute('aria-pressed'),'true');await page.evaluate(()=>previewNavigate(1));await settle();await page.evaluate(()=>previewNavigate(-1));await settle();assert.equal(await page.locator('[data-rate="keep"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('[data-rate="best"]').getAttribute('aria-pressed'),'true');assert.equal(await page.locator('[data-rate="keep"]').evaluate(b=>getComputedStyle(b).backgroundColor),'rgb(220, 226, 234)');await page.screenshot({path:out+'/focus-390.png'});
+  for(const viewport of [{width:360,height:640},{width:412,height:915}]){
+    await page.setViewportSize(viewport);await page.waitForTimeout(120);
+    const geometry=await page.evaluate(()=>{
+      const photo=document.querySelector('.focus-review .card').getBoundingClientRect();
+      const bar=document.querySelector('.focus-review .overlay').getBoundingClientRect();
+      const best=document.querySelector('[data-rate="best"]').getBoundingClientRect();const undo=document.querySelector('#focus-undo').getBoundingClientRect();
+      return {overflow:document.documentElement.scrollWidth>innerWidth,photoBottom:photo.bottom,barTop:bar.top,barBottom:bar.bottom,height:innerHeight,bestWidth:best.width,undoWidth:undo.width,topFavorite:!!document.querySelector('#favorite-best'),groupWidth:document.querySelector('.preview-rating-group').getBoundingClientRect().width};
+    });
+    assert.equal(geometry.overflow,false);assert(geometry.barTop>=geometry.photoBottom-1);assert(geometry.barBottom<=geometry.height+1);
+    assert.equal(geometry.bestWidth,48);assert.equal(geometry.undoWidth,48);assert.equal(geometry.groupWidth,128);assert.equal(geometry.topFavorite,false);
+    await page.screenshot({path:out+`/focus-${viewport.width}.png`});
+  }
+  await page.locator('#detail-results').click();assert(await page.locator('.summary-counts').count());
+  await page.locator('[data-scope="combined"]').click();
+  const ids=await page.evaluate(()=>selected().map(p=>p.id));assert.deepEqual(ids,[0,1]);
+  await page.screenshot({path:out+'/results.png'});
+  await page.reload({waitUntil:'networkidle'});await page.locator('#resume').click();await open(1);
+  assert.equal((await current()).ratings[1],'best');
+  assert.equal((await current()).index,1);
+  const reduced=await browser.newContext({viewport:{width:360,height:640},reducedMotion:'reduce'});
+  const rp=await reduced.newPage();rp.on('pageerror',e=>errors.push(e.message));await rp.goto('http://127.0.0.1:8771/');
+  await rp.evaluate(()=>{startFolder();state.reviewDates=[];state.screen='pick';render();openPhoto(0);});
+  await rp.locator('[data-rate="keep"]').click();assert.equal(await rp.evaluate(()=>state.ratings[0]),'keep');
+  await rp.screenshot({path:out+'/reduced-motion.png'});
+  assert.deepEqual(errors,[]);
+  fs.writeFileSync(out+'/browser-result.json',JSON.stringify({pass:true,checks:['button first/toggle/replace','favorite synchronization','best-preserving down gesture','left/right and boundaries','Undo rating and position','last photo','loading failure','nonconsecutive date IDs','persist/reload','three screen sizes','feedback cleanup','reduced motion'],jsErrors:errors},null,2));
+  console.log('PASS: integrated browser flows, layout, persistence and reduced motion.');
+  await browser.close();
+})().catch(e=>{console.error(e);process.exitCode=1;});

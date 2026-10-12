@@ -1,0 +1,10 @@
+/* The iframe's viewport is the mobile viewport, on desktop as well. */
+.phone{min-height:100dvh!important;padding:env(safe-area-inset-top) 16px max(16px,env(safe-area-inset-bottom))!important}
+.focus-review.modal{padding-top:max(8px,env(safe-area-inset-top));padding-bottom:max(10px,env(safe-area-inset-bottom))}
+.reading-layer{padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(24px,env(safe-area-inset-bottom))}
+.phone[data-screen="groups"]{height:100dvh;min-height:0!important}
+.download-card{padding:20px;background:#f5f6f8;border-radius:20px;margin:22px 0}
+.download-card b{display:block;font-size:17px;font-weight:600;margin-bottom:8px}
+.download-card p{font-size:13px;line-height:1.7;margin:0;color:var(--muted)}
+.download-action{display:flex;align-items:center;justify-content:center;text-decoration:none;min-height:54px;width:100%;border-radius:18px;background:var(--blue);color:white;font-size:15px;font-weight:600;margin-bottom:12px}
+.sheet .apk-link{display:flex;align-items:center;justify-content:center;min-height:48px;color:var(--ink);text-decoration:none;background:#f3f4f6;border:1px solid var(--line);border-radius:18px;font-size:14px;margin-top:8px}

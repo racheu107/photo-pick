@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.photopick.app'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.photopick.app.designpreview'
+        testInstrumentationRunner 'com.photopick.app.UpdaterChecks'
+        minSdk 29
+        targetSdk 35
+        versionCode 30
+        versionName '0.2.27'
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}

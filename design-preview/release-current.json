@@ -1,0 +1,10 @@
+{
+  "version": "0.2.27",
+  "designRevision": "d21",
+  "versionCode": 30,
+  "applicationId": "com.photopick.app.designpreview",
+  "apk": "PhotoPick-DesignPreview-0.2.27-d21.apk",
+  "apkWorkspacePath": "design-preview/releases/PhotoPick-DesignPreview-0.2.27-d21.apk",
+  "sha256": "6A6D2396CD998DCB4D4507AE9DD14B387CA9FA367B8C8B15BC91AE641C013D6E",
+  "publicDeployment": false
+}

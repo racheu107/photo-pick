@@ -1,0 +1,10 @@
+
+# Local build outputs and signing material
+**/.gradle/
+**/build/
+**/local.properties
+*.jks
+*.keystore
+*.p12
+design-preview/releases/
+design-preview/verification/
