@@ -7,11 +7,46 @@
   let resuming = false;
   let groupResize = null;
   let albumScroll = 0;
+  let pendingNavigation = null;
+  const HISTORY_LIMIT = 40;
+  // Retire d14's separate final selection without changing any photo ratings.
+  delete state.bestShots;
+  if (saved) delete saved.bestShots;
+  const gradeValid = value => value === null || ['skip','keep','best'].includes(value);
+  const historyValid = entry => entry && Number.isInteger(entry.index) && entry.index >= 0 && entry.index < total() && Array.isArray(entry.changes) && entry.changes.every(change => Number.isInteger(change.id) && change.id >= 0 && change.id < total() && gradeValid(change.before) && gradeValid(change.after));
+  const restoreHistory = () => {
+    if (Array.isArray(state.previewHistory)) {
+      state.history = state.previewHistory.filter(historyValid).slice(-HISTORY_LIMIT);
+      delete state.previewHistory;
+    } else if (state.history.some(entry => entry.ratings)) {
+      const snapshots = state.history.slice(-HISTORY_LIMIT);
+      state.history = snapshots.map((entry, offset) => {
+        const after = snapshots[offset + 1]?.ratings || state.ratings;
+        const changes = [...new Set([...Object.keys(entry.ratings), ...Object.keys(after)])].filter(id => entry.ratings[id] !== after[id]).map(id => ({id:Number(id), before:entry.ratings[id] || null, after:after[id] || null}));
+        return {index:entry.index, changes};
+      }).filter(historyValid);
+    }
+  };
+  restoreHistory();
+  const pushHistory = entry => { state.history.push(entry); state.history = state.history.slice(-HISTORY_LIMIT); };
+  const currentId = () => modalId === null ? state.index : modalId;
+  const busy = () => !!window.isPhotoMotionBusy?.();
+  const haptic = () => { if (window.PhotoPickAndroid?.ratingHaptic) window.PhotoPickAndroid.ratingHaptic(); else navigator.vibrate?.(12); };
+  window.previewCancelNavigation = () => { pendingNavigation = null; };
+  window.previewCommitNavigation = id => {
+    if (!pendingNavigation || pendingNavigation.target !== id) return;
+    if (pendingNavigation.undo) {
+      const previous = state.history.pop();
+      previous.changes.forEach(change => { if (change.before) state.ratings[change.id] = change.before; else delete state.ratings[change.id]; });
+    } else if (!pendingNavigation.recorded) pushHistory(pendingNavigation.entry);
+    pendingNavigation = null;
+  };
   const setFocus = enabled => {
     document.querySelector('.phone').classList.toggle('photo-focus', enabled);
     window.PhotoPickAndroid?.setPhotoFocus?.(enabled);
   };
   window.closePhotoFocus = () => {
+    window.previewCancelNavigation();
     window.cancelPhotoMotion?.(); setFocus(false); modalId = null; render();
     const album = app.querySelector('.album-grid'); if (album) album.scrollTop = albumScroll;
   };
@@ -34,6 +69,11 @@
   };
   menuSheet = function() {
     baseMenu();
+    const undoItem = layer.querySelector('#menu-undo');
+    if (undoItem) {
+      undoItem.disabled = !state.ratings[currentId()];
+      undoItem.textContent = '현재 사진 평가 초기화';
+    }
     if (state.screen === 'home' && window.PhotoPickAndroid?.checkUpdates) {
       layer.querySelector('#close-sheet').insertAdjacentHTML('beforebegin', '<button class="cta secondary" id="check-update">앱 업데이트 확인</button>');
       layer.querySelector('#check-update').onclick = () => { layer.innerHTML=''; PhotoPickAndroid.checkUpdates(); };
@@ -69,35 +109,116 @@
     return sourcePhotos.filter(p => ids.has(p.id) && (state.albumFilter === 'all' || (state.albumFilter === 'unrated' ? !state.ratings[p.id] : state.ratings[p.id] === state.albumFilter)));
   };
   persist = function() {
+    restoreHistory();
+    const history = state.history;
+    state.history = [];
     basePersist();
+    state.history = history;
     saved.reviewDates = state.reviewDates || [];
+    saved.previewHistory = history.slice(-HISTORY_LIMIT);
     try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (_) { storageOK = false; }
+    saved.history = history.slice(-HISTORY_LIMIT);
   };
-  update = function(id, value, advance = false) {
-    const focused = modalId !== null && !!layer.querySelector('.focus-review');
-    state.history.push({index:focused ? id : state.index, ratings:{...state.ratings}});
+  const refreshRating = () => {
+    const id = currentId();
+    const status = layer.querySelector('#focus-status'); if (status) status.textContent = '';
+    layer.querySelectorAll('[data-rate]').forEach(button => {
+      const active = button.dataset.rate === 'keep' ? ['keep','best'].includes(state.ratings[id]) : state.ratings[id] === button.dataset.rate;
+      button.disabled = false; button.classList.remove('chosen'); button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+    });
+    const undoButton = layer.querySelector('#focus-undo');
+    if (undoButton) {
+      undoButton.disabled = !state.ratings[id];
+      const name = '현재 사진 평가 초기화';
+      undoButton.setAttribute('aria-label', name); undoButton.title = name;
+    }
+  };
+  const setRating = (id, value) => {
+    const before = state.ratings[id] || null;
+    if (before === value) return [];
     if (value) state.ratings[id] = value; else delete state.ratings[id];
     state.hintSeen = true;
-    if (advance) {
-      const ids = reviewIds(), offset = ids.indexOf(id);
-      state.index = ids.slice(offset + 1).find(next => !state.ratings[next]) ?? firstUnrated();
-      if (state.index === total()) state.screen = 'summary';
+    return [{id, before, after:value}];
+  };
+  window.previewNextUnrated = id => {
+    const ids = reviewIds(), offset = ids.indexOf(id);
+    if (offset < 0) return undefined;
+    return ids.slice(offset + 1).find(next => !state.ratings[next]) ??
+      ids.slice(0, offset).find(next => !state.ratings[next]);
+  };
+  const advanceAfterRating = id => {
+    const target = window.previewNextUnrated(id);
+    window.prepareRatingTransition?.(id, state.ratings[id]);
+    if (target !== undefined) {
+      pendingNavigation = {target, recorded:true};
+      openPhoto(target, true);
+    } else {
+      const complete = () => { state.screen = 'summary'; persist(); render(); };
+      if (window.finishRatingTransition) window.finishRatingTransition(id, state.ratings[id], complete);
+      else complete();
     }
-    if (focused) {
-      const ids = reviewIds(), offset = ids.indexOf(id);
-      const next = value ? (ids.slice(offset + 1).find(next => !state.ratings[next]) ?? firstUnrated()) : id;
-      if (next === total()) { state.screen='summary'; persist(); render(); }
-      else { state.index=next; persist(); openPhoto(next, true); }
-      return;
+  };
+  window.previewRate = (id, value) => {
+    if (busy() || pendingNavigation || id !== currentId() || !reviewIds().includes(id) || !['skip','keep','best'].includes(value)) return false;
+    const existing = state.ratings[id];
+    const next = value === 'best' ? (existing === 'best' ? 'keep' : 'best') : value === 'keep' ? (['keep','best'].includes(existing) ? null : 'keep') : (existing === 'skip' ? null : 'skip');
+    const changes = setRating(id, next);
+    pushHistory({index:id, changes}); persist(); refreshRating(); haptic();
+    if (next) advanceAfterRating(id);
+    return true;
+  };
+  window.previewNavigate = delta => {
+    if (busy() || pendingNavigation || ![-1,1].includes(delta)) return false;
+    const id = currentId(), ids = reviewIds(), offset = ids.indexOf(id), target = ids[offset + delta];
+    if (offset < 0 || target === undefined) return false;
+    pendingNavigation = {target, entry:{index:id, changes:[]}, recorded:false};
+    openPhoto(target, true); return true;
+  };
+  window.previewSwipeGood = () => {
+    if (busy() || pendingNavigation) return false;
+    const id = currentId(), ids = reviewIds(), offset = ids.indexOf(id);
+    if (offset < 0) return false;
+    const changes = setRating(id, state.ratings[id] === 'best' ? 'best' : 'keep');
+    const target = window.previewNextUnrated(id);
+    if (changes.length || target !== undefined) pushHistory({index:id, changes});
+    persist(); refreshRating(); if (changes.length) haptic();
+    advanceAfterRating(id);
+    return true;
+  };
+  window.previewReset = () => {
+    if (busy() || pendingNavigation) return false;
+    const id = currentId();
+    if (!state.ratings[id]) return false;
+    setRating(id, null);
+    restoreHistory();
+    state.history = state.history.flatMap(entry => {
+      const changes = entry.changes.filter(change => change.id !== id);
+      return entry.changes.length && !changes.length ? [] : [{...entry, changes}];
+    });
+    persist();
+    if (modalId === null) render(); else {
+      refreshRating();
+      const status = layer.querySelector('#focus-status');
+      if (status) status.textContent = '이 사진의 평가를 초기화했어요.';
     }
-    persist(); render();
+    haptic(); return true;
+  };
+  window.previewUndo = window.previewReset;
+  undo = window.previewUndo;
+  rate = value => window.previewRate(currentId(), value);
+  update = (id, value, advance = false) => {
+    if (id !== currentId() || busy()) return;
+    if (advance) { window.previewSwipeGood(); return; }
+    const changes = setRating(id, value); if (!changes.length) return;
+    pushHistory({index:id, changes}); persist(); refreshRating();
   };
   activateCandidate = function(candidate, same) {
     baseActivate(candidate, same);
+    restoreHistory();
     if (!same) { state.reviewDates = []; placeNames.clear(); }
     if (state.dataset === 'demo') sourcePhotos.forEach(p => { p.captureDate = p.id < 3 ? '2026-10-08' : p.id < 8 ? '2026-10-06' : '2026-10-07'; });
     dateDraft = null; state.screen = resuming && same && state.reviewDates.length ? 'pick' : 'groups';
-    if (state.screen === 'pick') state.index = firstUnrated();
+    if (state.screen === 'pick' && !reviewIds().includes(state.index)) state.index = firstUnrated();
     state.mode = 'grid'; resuming = false; persist(); render();
     const keys = reviewGroups().map(g => g.photos.find(p => p.hasLocation)?.nativeKey).filter(Boolean);
     if (keys.length && window.PhotoPickAndroid?.describePlaces) PhotoPickAndroid.describePlaces(JSON.stringify(keys));
@@ -115,26 +236,38 @@
     const existing = layer.querySelector('.focus-review');
     modalId=id; state.index=id; persist();
     if (!existing) { setFocus(true);
-    layer.innerHTML=`<div class="modal focus-review" role="dialog" aria-modal="true" aria-label="한 장씩 사진 평가"><div class="detail-top"><button id="close-detail" class="detail-return" aria-label="앨범으로 돌아가기">${uiIcon('back')}<span>되돌아가기</span></button><div class="detail-navigation"><button id="previous" ${offset<=0?'disabled':''} aria-label="이전 사진">‹</button><span>${offset+1} / ${ids.length}</span><button id="next" ${offset>=ids.length-1?'disabled':''} aria-label="다음 사진">›</button></div><button id="detail-results">평가결과</button></div>${card(sourcePhotos[id])}<button class="clear-rating" id="clear-rating" ${state.ratings[id]?'':'disabled'}>평가 취소</button></div>`;
+    layer.innerHTML=`<div class="modal focus-review" role="dialog" aria-modal="true" aria-label="한 장씩 사진 평가"><div class="detail-top"><button id="close-detail" class="detail-return" aria-label="앨범으로 돌아가기">${uiIcon('back')}<span>되돌아가기</span></button><div class="detail-navigation"><button id="previous" ${offset<=0?'disabled':''} aria-label="이전 사진">‹</button><span>${offset+1} / ${ids.length}</span><button id="next" ${offset>=ids.length-1?'disabled':''} aria-label="다음 사진">›</button></div><button id="detail-results">평가결과</button></div>${card(sourcePhotos[id])}<p id="focus-status" class="preview-status" role="status" aria-live="polite"></p></div>`;
     } else {
       existing.querySelector('.photo-viewport').innerHTML=img(sourcePhotos[id]);
       existing.querySelector('.detail-navigation span').textContent=`${offset+1} / ${ids.length}`;
       existing.querySelector('#previous').disabled=offset<=0;
       existing.querySelector('#next').disabled=offset>=ids.length-1;
-      existing.querySelector('#clear-rating').disabled=!state.ratings[id];
+      existing.querySelector('#focus-status').textContent='';
       existing.querySelectorAll('[data-rate]').forEach(button=>{
         button.disabled=false; button.classList.remove('chosen');
-        button.classList.toggle('active',state.ratings[id]===button.dataset.rate);
-        button.setAttribute('aria-pressed',String(state.ratings[id]===button.dataset.rate));
+        const active=button.dataset.rate==='keep'?['keep','best'].includes(state.ratings[id]):state.ratings[id]===button.dataset.rate;
+        button.classList.toggle('active',active);
+        button.setAttribute('aria-pressed',String(active));
       });
     }
     layer.querySelector('#close-detail').onclick=closePhotoFocus;
-    layer.querySelector('#previous').onclick=()=>openPhoto(ids[offset-1]);
-    layer.querySelector('#next').onclick=()=>openPhoto(ids[offset+1]);
-    layer.querySelector('#detail-results').onclick=()=>{ window.cancelPhotoMotion?.(); state.screen='summary'; persist(); render(); };
-    layer.querySelector('#clear-rating').onclick=()=>update(id,null);
+    layer.querySelector('#previous').onclick=()=>window.previewNavigate(-1);
+    layer.querySelector('#next').onclick=()=>window.previewNavigate(1);
+    layer.querySelector('#detail-results').onclick=()=>{ window.previewCancelNavigation(); window.cancelPhotoMotion?.(); state.screen='summary'; persist(); render(); };
     layer.querySelectorAll('[data-rate]').forEach(button=>button.onclick=()=>rate(button.dataset.rate));
+    layer.querySelector('#focus-undo').onclick=window.previewUndo;
+    refreshRating();
     bindSwipe(layer.querySelector('.card'));
+  };
+  const baseSummary = summary;
+  summary = function() {
+    baseSummary();
+    const c = counts(), combined = c.keep + c.best;
+    const allButton = app.querySelector('[data-scope="combined"]');
+    if (allButton) allButton.textContent = `선택 사진 전체 ${combined}장`;
+    app.querySelector('.summary-counts')?.insertAdjacentHTML('beforebegin', `<p class="preview-selection-total">선택 ${combined}장 · 그중 매우 좋음 ${c.best}장</p>`);
+    const download = app.querySelector('#import');
+    if (download) download.innerHTML = uiIcon('download') + selected().length + '장 사진 다운로드';
   };
   header = function() {
     const ids = reviewIds(), c = counts();
@@ -154,11 +287,15 @@
       panel.innerHTML = `<button class="subtle blue" id="resume">이어서 평가 ${uiIcon('right')}</button><small>${esc(state.folderName)} · 평가(${n-c.unrated}/${n}장)</small>`;
     }
   };
-  card = p => `<div class="photo-stage"><div class="card ${state.dataset==='demo'?'demo-card':'real-card'}" id="photo-card"><div class="photo-viewport">${img(p)}</div></div>${actions(p)}</div>`;
+  const previewButton = (p, grade) => {
+    const active=grade==='keep'?['keep','best'].includes(state.ratings[p.id]):state.ratings[p.id]===grade;
+    return `<button class="action preview-action ${grade==='keep'?'good':grade==='best'?'best':''} ${active?'active':''}" data-rate="${grade}" aria-label="${labels[grade]}" aria-pressed="${active}">${icon(grade)}<span class="preview-action-label">${labels[grade]}</span></button>`;
+  };
+  card = p => `<div class="photo-stage"><div class="card ${state.dataset==='demo'?'demo-card':'real-card'}" id="photo-card"><div class="photo-viewport">${img(p)}</div></div><div class="overlay"><button id="focus-undo" class="preview-undo" aria-label="현재 사진 평가 초기화" ${state.ratings[p.id]?'':'disabled'}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M6.1 6.1a8 8 0 0 1 13 3.4M4.9 14.5a8 8 0 0 0 13 3.4"/></svg></button><div class="preview-rating-group">${previewButton(p,'skip')}${previewButton(p,'keep')}</div>${previewButton(p,'best')}</div></div>`;
   pick = function() {
     state.mode='grid';
     const c=counts(), ids=reviewIds(), shown=albumPhotos();
-    app.innerHTML=`<div class="review-context"><button class="subtle" id="groups">${state.reviewDates?.length===1 ? dateTitle(state.reviewDates[0]) : '사진그룹 선택'} ${uiIcon('right')}</button><span>${ids.length-c.unrated} / ${ids.length}장 평가</span></div><p class="album-intro">사진을 누르면 한 장씩 평가할 수 있어요.</p><div class="album-filters">${[['all','전체',ids.length],['unrated','미평가',c.unrated],['best','아주 좋음',c.best],['keep','좋음',c.keep],['skip','별로',c.skip]].map(([v,label,n])=>`<button data-albumfilter="${v}" class="${state.albumFilter===v?'active':''}" aria-pressed="${state.albumFilter===v}">${label} ${n}</button>`).join('')}</div>${shown.length ? `<div class="grid album-grid">${shown.map(tile).join('')}</div>` : '<div class="empty">이 등급의 사진이 없어요.</div>'}<button class="review-results" id="summary">평가 결과 ${uiIcon('right')}</button>`;
+    app.innerHTML=`<div class="review-context"><button class="subtle" id="groups">${state.reviewDates?.length===1 ? dateTitle(state.reviewDates[0]) : '사진그룹 선택'} ${uiIcon('right')}</button><span>${ids.length-c.unrated} / ${ids.length}장 평가</span></div><p class="album-intro">사진을 누르면 한 장씩 평가할 수 있어요.</p><div class="album-filters">${[['all','전체',ids.length],['unrated','미평가',c.unrated],['best','매우 좋음',c.best],['keep','좋음',c.keep],['skip','별로',c.skip]].map(([v,label,n])=>`<button data-albumfilter="${v}" class="${state.albumFilter===v?'active':''}" aria-pressed="${state.albumFilter===v}">${label} ${n}</button>`).join('')}</div>${shown.length ? `<div class="grid album-grid">${shown.map(tile).join('')}</div>` : '<div class="empty">이 등급의 사진이 없어요.</div>'}<button class="review-results" id="summary">평가 결과 ${uiIcon('right')}</button>`;
   };
   function groupsScreen() {
     const groups = reviewGroups();
@@ -201,6 +338,7 @@
     document.querySelector('#screen-menu').onclick = menuSheet;
   }
   render = function() {
+    window.previewCancelNavigation();
     setFocus(false);
     if (groupResize) { groupResize.disconnect(); groupResize = null; }
     if (state.screen !== 'groups') { baseRender(); return; }
@@ -215,7 +353,7 @@
     const resumeButton = document.querySelector('#resume');
     if (resumeButton) resumeButton.onclick = () => {
       if (state.dataset === 'real' && !sourcePhotos.length && window.PhotoPickAndroid) { resuming = true; PhotoPickAndroid.chooseFolder(); }
-      else if (!state.reviewDates.length) goGroups(); else { state={...fresh(),...saved,screen:'pick',mode:'grid',imported:[],progress:0}; state.index=firstUnrated(); render(); }
+      else if (!state.reviewDates.length) goGroups(); else { state={...fresh(),...saved,screen:'pick',mode:'grid',imported:[],progress:0}; restoreHistory(); if (!reviewIds().includes(state.index)) state.index=firstUnrated(); render(); }
     };
     const unrated = document.querySelector('#unrated'); if (unrated) unrated.onclick = () => { state.mode='grid'; state.albumFilter='unrated'; state.screen='pick'; persist(); render(); };
     const review = document.querySelector('#review'); if (review) review.onclick = () => { state.index=reviewIds()[0] ?? total(); render(); };

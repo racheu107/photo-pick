@@ -1,0 +1,36 @@
+/* B: lens signature. The camera is a raster 3D render; only transforms animate. */
+.brand-opening{position:fixed;inset:0;z-index:10000;background:#fff;color:#202730;overflow:hidden;isolation:isolate;touch-action:manipulation;display:block}
+.brand-opening[hidden]{display:none}
+.opening-camera{position:absolute;left:50%;top:43%;width:min(88vw,350px);aspect-ratio:3/2;transform:translate(-66%,-50%) scale(2.15);transform-origin:70% 60%;will-change:transform;pointer-events:none;opacity:0}
+.opening-camera>img{width:100%;height:auto;display:block}
+.opening-lens{position:absolute;left:46%;top:23%;width:47%;height:69%;border-radius:50%;overflow:hidden;opacity:0;pointer-events:none}
+.opening-lens i{display:block;position:absolute;inset:-50%;background:linear-gradient(110deg,transparent 38%,#fff8 48%,#fff2 53%,transparent 63%);transform:translateX(-70%)}
+.opening-brand{position:absolute;top:calc(43% + 145px);left:20px;right:20px;text-align:center;opacity:0;pointer-events:none}
+.opening-brand strong{font-size:clamp(28px,8vw,34px);font-weight:700;letter-spacing:-1.4px;line-height:1.3}
+.opening-brand p{font-size:12px;line-height:1.6;margin:10px 0 0;color:#66717e}
+.opening-skip{position:absolute;right:20px;bottom:20px;background:transparent;border:0;border-radius:8px;color:#66717e;padding:12px 8px;font-size:12px;min-width:48px;min-height:48px}
+.opening-skip:focus-visible{outline:2px solid #465260;outline-offset:2px}
+.brand-opening.is-playing .opening-camera{animation:opening-reveal 950ms cubic-bezier(.22,.68,.25,1) both,opening-appear 650ms linear 100ms both}
+.brand-opening.is-playing .opening-lens{animation:opening-glow 400ms ease-in-out 350ms both}
+.brand-opening.is-playing .opening-lens i{animation:opening-light 400ms ease-in-out 350ms both}
+.brand-opening.is-playing .opening-brand{animation:opening-name 250ms ease-out 750ms both}
+.brand-opening.is-static .opening-camera{transform:translate(-50%,-50%);will-change:auto;opacity:1}
+.brand-opening.is-static .opening-brand{opacity:1}
+.brand-opening.is-fallback .opening-camera{display:none}
+.brand-opening.is-fallback .opening-brand{top:45%;opacity:1}
+.brand-opening.is-leaving{opacity:0;transition:opacity 220ms ease-out;pointer-events:none}
+@keyframes opening-appear{from{opacity:0}to{opacity:1}}
+@keyframes opening-reveal{0%,20%{transform:translate(-66%,-50%) scale(2.15)}100%{transform:translate(-50%,-50%) scale(1)}}
+@keyframes opening-glow{0%,100%{opacity:0}45%{opacity:.38}}
+@keyframes opening-light{to{transform:translateX(70%)}}
+@keyframes opening-name{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.brand-opening.is-playing .opening-camera,.brand-opening.is-playing .opening-lens,.brand-opening.is-playing .opening-lens i,.brand-opening.is-playing .opening-brand{animation:none}.opening-camera{transform:translate(-50%,-50%);will-change:auto;opacity:1}.opening-brand{opacity:1}.brand-opening.is-leaving{transition:none}}
+
+.opening-home-pending{opacity:0}
+.opening-home-enter{animation:opening-home 280ms cubic-bezier(.4,0,.2,1) both}
+@keyframes opening-home{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.opening-home-pending{opacity:1}.opening-home-enter{animation:none}}
+
+.brand-opening.is-playing .opening-brand p{animation:opening-copy 200ms ease-out 800ms both}
+@keyframes opening-copy{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.brand-opening.is-playing .opening-brand p{animation:none}}
